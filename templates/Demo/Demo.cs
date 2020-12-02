@@ -1,17 +1,24 @@
 ﻿using ImGui;
-using ImGui.Common;
-using ImGui.Common.Primitive;
-using ImGui.OSAbstraction.Graphics;
-using System.Collections.Generic;
 
 public class Demo
 {
     double f = 0.0f;
     Color clearColor = Color.Argb(255, 114, 144, 154);
-    private bool showAnotherWindow = true;
+    private bool showAnotherWindow = false;
+    private bool showMetricsWindow = false;
 
     #region Demo
     bool showDemoWindow = false;
+
+    System.Diagnostics.Stopwatch watch;
+    private static long startTime;
+    private static long deltaTime;
+
+    public Demo()
+    {
+        watch = new System.Diagnostics.Stopwatch();
+        watch.Start();
+    }
 
     #region Help
     bool helpOn;
@@ -55,7 +62,7 @@ public class Demo
 
     string buf = "日本語";
     bool read_only = false;
-    string text = @"/*\n
+    string multiLineText = @"/*\n
  The Pentium F00F bug, shorthand for F0 0F C7 C8,
  the hexadecimal encoding of one offending instruction,
  more formally, the invalid operand with locked CMPXCHG8B
@@ -109,9 +116,15 @@ label:
     #endregion
 
     #endregion
+    
+    private string text = "Quick brown fox";
+    private double value = 0.6;
 
     public void OnGUI()
     {
+        deltaTime = watch.ElapsedMilliseconds - startTime;
+        startTime = watch.ElapsedMilliseconds;
+
         // 1. Show a simple window
         // Tip: if we don't call GUI.Begin()/GUI.End() the widgets appears in a window automatically called "Debug"
         {
@@ -120,6 +133,7 @@ label:
             clearColor = GUILayout.ColorField("clear color", clearColor);
             if (GUILayout.Button("Show Demo Window")) showDemoWindow = !showDemoWindow;
             if (GUILayout.Button("Show Another Window")) showAnotherWindow = !showAnotherWindow;
+            if (GUILayout.Button("Show Metrics Window")) showMetricsWindow = !showMetricsWindow;
             //var fps = Form.current.uiContext.fps;
             //GUILayout.Label(string.Format("Application average {0:F3} ms/frame ({1:F1} FPS)", 1000.0f / fps, fps));//FIXME Showing text that keeps updating is slow.
         }
@@ -127,8 +141,16 @@ label:
         // 2. Show another simple window, this time using an explicit Begin/End pair
         if (showAnotherWindow)
         {
-            GUI.Begin("Another Window", ref showAnotherWindow, (70, 450), (400, 100));
-            GUILayout.Label("Hello");
+            GUI.Begin("Another Window", ref showAnotherWindow, (80, 340), (400, 150));
+            GUILayout.Text("Hello, ImGui {0}", 123);
+
+            if (GUILayout.Button("OK"))
+            {
+                // do stuff
+            }
+
+            text = GUILayout.TextBox("string", 256, text);
+            value = GUILayout.Slider("float", value, 0, 1);
             GUI.End();
         }
 
@@ -136,6 +158,11 @@ label:
         if (showDemoWindow)
         {
             ShowTestWindow(ref showDemoWindow);
+        }
+
+        if (showMetricsWindow)
+        {
+            ImGui.Development.Metrics.ShowWindow(ref showMetricsWindow);
         }
 
         Form.current.BackgroundColor = clearColor;
@@ -176,13 +203,13 @@ label:
             if (GUILayout.TreeNode("Style", ref styleEditorOpen))
             {
                 ShowStyleEditor();
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
             if (GUILayout.TreeNode("Logging", ref loggingOpen))
             {
                 GUILayout.Text("TODO");
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
             //TODO logging
             GUILayout.PopID();
         }
@@ -202,13 +229,13 @@ label:
                             GUILayout.Label("blah blah");
                             if (GUILayout.Button("print")) System.Console.WriteLine("Child {0} pressed", i);
                             GUILayout.EndHorizontal();
+                            GUILayout.TreePop();
                         }
-                        GUILayout.TreePop();
                     }
+                    GUILayout.TreePop();
                 }
                 GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Collapsing Headers", ref open4))
             {
@@ -227,19 +254,19 @@ label:
                         GUILayout.Label("More content {0}", i);
                     }
                 }
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Bullets", ref open6))
             {
                 GUILayout.BulletText("Bullet point 1");
                 GUILayout.BulletText("Bullet point 2\nOn multiple lines");
-                GUILayout.PushHCellSpacing(0);//remove horizontal cell spacing of following groups.
+                GUILayout.PushStyle(StylePropertyName.CellSpacingHorizontal, 0);//remove horizontal cell spacing of following groups.
                 GUILayout.BeginHorizontal("HGroup~1"); GUILayout.Bullet("_Bullet"); GUILayout.Text("Bullet point 3 (two calls)"); GUILayout.EndHorizontal();
                 GUILayout.BeginHorizontal("HGroup~2"); GUILayout.Bullet("_Bullet"); GUILayout.Button("Button"); GUILayout.EndHorizontal();
-                GUILayout.PopStyleVar();
+                GUILayout.PopStyle();
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Colored Text", ref open7))
             {
@@ -247,15 +274,15 @@ label:
                 GUILayout.Label(new Color(1.0f, 0.0f, 1.0f, 1.0f), "Pink");
                 GUILayout.Label(new Color(1.0f, 1.0f, 0.0f, 1.0f), "Yellow");
                 GUILayout.LabelDisabled("Disabled");
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Word Wrapping", ref open8))
             {
                 //TODO
                 GUILayout.Label("TODO");
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Non-ASCII Text", ref open9))
             {
@@ -263,8 +290,8 @@ label:
                 GUILayout.Label("Hiragana: カククケコ (kakikukeko)");
                 GUILayout.Label("Kanjis: 日本語 (nihongo)");
                 buf = GUILayout.InputText("Unicode input", buf);
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Images", ref open10))
             {
@@ -274,14 +301,17 @@ label:
                 for (int i = 0; i < 8; i++)
                 {
                     GUILayout.PushID(i);
-                    if (GUILayout.ImageButton("images/trees.jpg", new Size(32, 32), new Point(32.0f * i / 256, 0), new Point(32.0f * (i + 1) / 256, 32.0f / 256)))
+                    if (GUILayout.ImageButton("images/trees.jpg", new Size(32, 32),
+                        new Vector(32.0f * i, 0)))
+                    {
                         pressed_count += 1;
+                    }
                     GUILayout.PopID();
                 }
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Pressed {0} times.", pressed_count);
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Selectables", ref open11))
             {
@@ -291,11 +321,11 @@ label:
                     selected[1] = GUILayout.Selectable("2. I am selectable", selected[1]);
                     GUILayout.Text("3. I am not selectable");
                     selected[2] = GUILayout.Selectable("4. I am selectable", selected[2]);
+                    GUILayout.TreePop();
                 }
-                GUILayout.TreePop();
                 GUILayout.Label("more TODO");
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Filtered Text Input", ref open12))
             {
@@ -308,26 +338,26 @@ label:
                 GUILayout.Text("Password input");
                 password = GUILayout.InputText("password", password, InputTextFlags.Password | InputTextFlags.CharsNoBlank);
                 password = GUILayout.InputText("password (clear)", password, InputTextFlags.CharsNoBlank);
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Multi-line Text Input", ref open13))
             {
                 GUILayout.PushPadding((0,0,0,0));
                 read_only = GUILayout.CheckBox("Read-only", read_only);
-                GUILayout.PopStyleVar(4);
-                GUILayout.PushHStretchFactor(1);
+                GUILayout.PopStyle(4);
+                GUILayout.PushStyle(StylePropertyName.HorizontalStretchFactor, 1);
                 if(read_only)
                 {
-                    GUILayout.InputTextMultiline("Text Box", new Size(120, 200), text);
+                    GUILayout.InputTextMultiline("Text Box", new Size(120, 200), multiLineText);
                 }
                 else
                 {
-                    text = GUILayout.InputTextMultiline("Text Box", new Size(120, 200), text);
+                    multiLineText = GUILayout.InputTextMultiline("Text Box", new Size(120, 200), multiLineText);
                 }
-                GUILayout.PopStyleVar();
+                GUILayout.PopStyle();
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             using (GUILayout.HScope("HGroup~button_show_text"))
             {
@@ -358,11 +388,11 @@ label:
                 for (int i = 0; i < 7; i++)
                 {
                     GUILayout.PushID(i);
-                    GUILayout.PushStyleColor(GUIStyleName.BackgroundColor, Color.HSV(i / 7.0f, 0.6f, 0.6f), GUIState.Normal);
-                    GUILayout.PushStyleColor(GUIStyleName.BackgroundColor, Color.HSV(i / 7.0f, 0.7f, 0.7f), GUIState.Hover);
-                    GUILayout.PushStyleColor(GUIStyleName.BackgroundColor, Color.HSV(i / 7.0f, 0.8f, 0.8f), GUIState.Active);
+                    GUILayout.PushStyle(StylePropertyName.BackgroundColor, Color.HSV(i / 7.0f, 0.6f, 0.6f), GUIState.Normal);
+                    GUILayout.PushStyle(StylePropertyName.BackgroundColor, Color.HSV(i / 7.0f, 0.7f, 0.7f), GUIState.Hover);
+                    GUILayout.PushStyle(StylePropertyName.BackgroundColor, Color.HSV(i / 7.0f, 0.8f, 0.8f), GUIState.Active);
                     GUILayout.Button("Click");
-                    GUILayout.PopStyleVar(3);
+                    GUILayout.PopStyle(3);
                     GUILayout.PopID();
                 }
             }
@@ -401,8 +431,8 @@ label:
                 sliderValue = GUILayout.Slider("slider", sliderValue, 0.0, 1.0);
                 GUILayout.Label("Vertical Slder");
                 vSliderValue = GUILayout.VSlider("vslider", vSliderValue, 0.0, 1.0);
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             GUILayout.PopID();
         }
@@ -411,10 +441,10 @@ label:
         {
             GUILayout.PushID("_GraphsWidgets");
             animate = GUILayout.CheckBox("Animate", animate);
-            GUILayout.PushHStretchFactor(1);//+1
+            GUILayout.PushStyle(StylePropertyName.HorizontalStretchFactor, 1);//+1
             if (animate)
             {
-                progress += progress_dir * 0.4f * Application.DeltaTime / 1000.0;
+                progress += progress_dir * 0.4f * deltaTime / 1000.0;
                 if (progress >= +1.1f) { progress = +1.1f; progress_dir *= -1.0f; }
                 if (progress <= -0.1f) { progress = -0.1f; progress_dir *= -1.0f; }
             }
@@ -426,15 +456,15 @@ label:
             GUILayout.ProgressBar("ProgressBar %", progress, (400, 20), percentText);
 
             const int total = 1753;
-            var text = string.Format("{0}/{1}", (int)(progress_saturated * total), total);
-            GUILayout.ProgressBar("ProgressBar /", progress, (400, 20), text);
+            var progressText = string.Format("{0}/{1}", (int)(progress_saturated * total), total);
+            GUILayout.ProgressBar("ProgressBar /", progress, (400, 20), progressText);
             GUILayout.EndVertical();
             GUILayout.PushFixedWidth(100);//+2
             GUILayout.Text("Progress");
-            GUILayout.PopStyleVar(2);//-2
+            GUILayout.PopStyle(2);//-2
             GUILayout.EndHorizontal();
 
-            GUILayout.PopStyleVar();//-1
+            GUILayout.PopStyle();//-1
             GUILayout.PopID();
         }
 
@@ -452,11 +482,11 @@ label:
                 {
                     goto_line = true;
                 }
-                GUILayout.PopStyleVar(2);//-2
+                GUILayout.PopStyle(2);//-2
 
                 using (GUILayout.HScope("HGroup~1"))
                 {
-                    if (GUILayout.BeginChild("Sub1", (0, 300), 0, GUILayout.Height(300).ExpandWidth(true)))
+                    if (GUILayout.BeginChild("Sub1", GUILayout.Height(300).ExpandWidth(true)))
                     {
                         for (int i = 0; i < 50; i++)
                         {
@@ -473,7 +503,7 @@ label:
                         GUILayout.EndChild();
                     }
 
-                    if (GUILayout.BeginChild("Sub2", (0, 300), 0, GUILayout.Height(300).ExpandWidth(true)))
+                    if (GUILayout.BeginChild("Sub2", GUILayout.Height(300).ExpandWidth(true)))
                     {
                         GUILayout.Text("With border");
                         for (int i = 0; i < 50; i++)
@@ -483,8 +513,8 @@ label:
                         GUILayout.EndChild();
                     }
                 }
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Stack layout", ref stackLayoutOpen))
             {
@@ -503,25 +533,25 @@ label:
                     GUILayout.Button("1");
                     GUILayout.Button("2");
                     GUILayout.Button("3");
-                    GUILayout.PopStyleVar(2);
+                    GUILayout.PopStyle(2);
                 }
                 GUILayout.EndHorizontal();
                 GUILayout.Label("Three stretched sized buttons with 1/2/3 stretch factor.");
                 GUILayout.BeginHorizontal("H~~~3");
                 {
-                    GUILayout.PushHStretchFactor(1);
+                    GUILayout.PushStyle(StylePropertyName.HorizontalStretchFactor, 1);
                     GUILayout.Button("1");
-                    GUILayout.PopStyleVar();
-                    GUILayout.PushHStretchFactor(2);
+                    GUILayout.PopStyle();
+                    GUILayout.PushStyle(StylePropertyName.HorizontalStretchFactor, 2);
                     GUILayout.Button("2");
-                    GUILayout.PopStyleVar();
-                    GUILayout.PushHStretchFactor(3);
+                    GUILayout.PopStyle();
+                    GUILayout.PushStyle(StylePropertyName.HorizontalStretchFactor, 3);
                     GUILayout.Button("3");
-                    GUILayout.PopStyleVar();
+                    GUILayout.PopStyle();
                 }
                 GUILayout.EndHorizontal();
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("Layout scopes", ref layoutScopesOpen))
             {
@@ -541,8 +571,8 @@ label:
                     GUILayout.Button("H2");
                     GUILayout.Button("H3");
                 }
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             GUILayout.PopID();
         }
@@ -554,6 +584,15 @@ label:
             GUILayout.Button("MyButton1", this.smallRed);
             GUILayout.Button("MyButton2", new LayoutOptions().FontColor(Color.Blue).FontSize(40));
 
+            GUILayout.PushBorder((10,20,30,40));
+            GUILayout.PushPadding((40,30,20,10));
+            GUILayout.PushStyle(StylePropertyName.BorderTopColor, Color.Red);
+            GUILayout.PushStyle(StylePropertyName.BorderRightColor, Color.Green);
+            GUILayout.PushStyle(StylePropertyName.BorderBottomColor, Color.Blue);
+            GUILayout.PushStyle(StylePropertyName.BorderLeftColor, Color.Yellow);
+            GUILayout.Button("Box Model", GUILayout.Width(161).Height(100));
+            GUILayout.PopStyle(4+4+4);
+
             if (GUILayout.TreeNode("Default", ref defaultSkinOpen))
             {
                 using (GUILayout.HScope("HorizontalScope~", GUILayout.ExpandWidth(false)))
@@ -562,8 +601,8 @@ label:
                     GUILayout.Button("Button 2");
                     GUILayout.Button("Button 3");
                 }
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             if (GUILayout.TreeNode("dear imgui", ref dearImGuiSkinOpen))
             {
@@ -574,8 +613,8 @@ label:
                     GUILayout.Button("Button 2");
                     GUILayout.Button("Button 3");
                 }
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             GUI.SetDefaultSkin();
 
@@ -588,17 +627,23 @@ label:
                     GUILayout.Button("Button 2");
                     GUILayout.Button("Button 3");
                 }
+                GUILayout.TreePop();
             }
-            GUILayout.TreePop();
 
             GUI.SetDefaultSkin();
 
             GUILayout.PopID();
         }
 
+        if (GUILayout.CollapsingHeader("Header", ref headerOn))
+        {
+            GUILayout.Button("Button A");
+            GUILayout.Button("Button B");
+            GUILayout.Button("Button C");
+        }
         GUI.End();
     }
-
+    bool headerOn = false;
     private void ShowUserGuide()
     {
         GUILayout.PushID("UserGuide");
@@ -636,43 +681,33 @@ label:
         GUILayout.PopID();
     }
 
-    private static Dictionary<GUIControlName, IReadOnlyList<StyleModifier>> dearImGuiSkinRules;
-    private static Dictionary<GUIControlName, IReadOnlyList<StyleModifier>> win10SkinRules;
+    private static ImGui.Style.CustomSkin dearImGuiSkinRules;
+    private static ImGui.Style.CustomSkin win10SkinRules;
 
     private static void InitDearImGuiSkin()
     {
-        StyleModifierBuilder builder = new StyleModifierBuilder();
-
-        dearImGuiSkinRules = new Dictionary<GUIControlName, IReadOnlyList<StyleModifier>>();
-        builder.PushBorder(1);
-        builder.PushPadding(5);
-        builder.PushBorderColor(new Color(0.70f, 0.70f, 0.70f, 0.65f));
-        builder.PushBgColor(new Color(0.67f, 0.40f, 0.40f, 0.60f), GUIState.Normal);
-        builder.PushBgColor(new Color(0.67f, 0.40f, 0.40f, 1.00f), GUIState.Hover);
-        builder.PushBgColor(new Color(0.80f, 0.50f, 0.50f, 1.00f), GUIState.Active);
-        dearImGuiSkinRules.Add(GUIControlName.Button, builder.ToArray());
-
-        builder.Clear();
-        //TODO other controls
+        dearImGuiSkinRules = new ImGui.Style.CustomSkin();
+        var button = dearImGuiSkinRules[GUIControlName.Button];
+        button.Border = (1, 1, 1, 1);
+        button.Padding = (5, 5, 5, 5);
+        button.SetBorderColor(new Color(0.70f, 0.70f, 0.70f, 0.65f));
+        button.SetBackgroundColor(new Color(0.67f, 0.40f, 0.40f, 0.60f), GUIState.Normal);
+        button.SetBackgroundColor(new Color(0.67f, 0.40f, 0.40f, 1.00f), GUIState.Hover);
+        button.SetBackgroundColor(new Color(0.80f, 0.50f, 0.50f, 1.00f), GUIState.Active);
     }
 
     private static void InitWin10Skin()
     {
-        StyleModifierBuilder builder = new StyleModifierBuilder();
-
-        win10SkinRules = new Dictionary<GUIControlName, IReadOnlyList<StyleModifier>>();
-        builder.PushBorder(1);
-        builder.PushPadding(5);
-        builder.PushBorderColor(Color.Rgb(173), GUIState.Normal);
-        builder.PushBorderColor(Color.Rgb(0, 120, 215), GUIState.Hover);
-        builder.PushBorderColor(Color.Rgb(0, 84, 153), GUIState.Active);
-        builder.PushBgColor(Color.Rgb(225), GUIState.Normal);
-        builder.PushBgColor(Color.Rgb(229, 241, 251), GUIState.Hover);
-        builder.PushBgColor(Color.Rgb(204, 228, 247), GUIState.Active);
-        win10SkinRules.Add(GUIControlName.Button, builder.ToArray());
-
-        builder.Clear();
-        //TODO other controls
+        win10SkinRules = new ImGui.Style.CustomSkin();
+        var button = win10SkinRules[GUIControlName.Button];
+        button.Border = (2, 2, 2, 2);
+        button.Padding = (5, 5, 5, 5);
+        button.SetBorderColor(Color.Rgb(204), GUIState.Normal);
+        button.SetBorderColor(Color.Rgb(122), GUIState.Hover);
+        button.SetBorderColor(Color.Rgb(153), GUIState.Active);
+        button.SetBackgroundColor(Color.Rgb(225), GUIState.Normal);
+        button.SetBackgroundColor(Color.Rgb(225), GUIState.Hover);
+        button.SetBackgroundColor(Color.Rgb(153), GUIState.Active);
     }
 
     static Demo()

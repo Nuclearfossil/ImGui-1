@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using ImGui.Common.Primitive;
 
-namespace ImGui.Common
+namespace ImGui
 {
     /// <summary>
     /// Extended class for System.Math
@@ -18,7 +17,7 @@ namespace ImGui.Common
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double ClampTo0(double value)
         {
-            if(value < 0)
+            if (value < 0)
             {
                 return 0;
             }
@@ -137,6 +136,11 @@ namespace ImGui.Common
             return value;
         }
 
+        public static int RoundToInt(double f)
+        {
+            return (int)Math.Round(f);
+        }
+
         /// <summary>
         /// Check if number is zero, the error is 0.001
         /// </summary>
@@ -180,11 +184,15 @@ namespace ImGui.Common
         /// <param name="fail_value"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static double InverseLength(Vector lhs, double fail_value)
+        public static void NORMALIZE2F_OVER_ZERO(ref double VX, ref double VY)
         {
-            var d = lhs.X * lhs.X + lhs.Y * lhs.Y;
-            if (d > 0.0f) return 1.0 / Math.Sqrt(d);
-            return fail_value;
+            var d2 = VX * VX + VY * VY;
+            if (d2 > 0.0f)
+            {
+                var inv_len = 1.0 / Math.Sqrt(d2);
+                VX *= inv_len;
+                VY *= inv_len;
+            }
         }
 
         /// <summary>
@@ -276,17 +284,67 @@ namespace ImGui.Common
             Point vsum = Point.Zero;
 
             var numVerts = verts.Length;
-            for (int i = 0; i<numVerts; i++)
+            for (int i = 0; i < numVerts; i++)
             {
                 Point v1 = verts[i];
                 Point v2 = verts[(i + 1) % numVerts];
-                var cross = v1.X*v2.Y - v1.Y*v2.X;
+                var cross = v1.X * v2.Y - v1.Y * v2.X;
                 sum += cross;
                 vsum = new Point(((v1.X + v2.X) * cross) + vsum.X, ((v1.Y + v2.Y) * cross) + vsum.Y);
             }
 
             var z = 1.0 / (3.0 * sum);
             return new Point(vsum.X * z, vsum.Y * z);
+        }
+
+        public static Point EvaluateCircle(Point center, double radius, double rad)
+        {
+            return EvaluateEllipse(center, radius, radius, rad);
+        }
+
+        public static Point EvaluateEllipse(Point center, double xHalfAxis, double yHalfAxis, double rad)
+        {
+            double x = xHalfAxis * Math.Cos(rad);
+            double y = yHalfAxis * Math.Sin(rad);
+            return new Point(x, y) + new Vector(center.X, center.Y);
+        }
+
+        public static Point EvaluateQuadraticBezier(Point startPoint, Point controlPoint, Point endPoint, double t)
+        {
+            var P0 = startPoint;
+            var P1 = controlPoint;
+            var P2 = endPoint;
+
+            double x = (1 - t) * (1 - t) * P0.X + 2 * (1 - t) * t * P1.X + t * t * P2.X;
+            double y = (1 - t) * (1 - t) * P0.Y + 2 * (1 - t) * t * P1.Y + t * t * P2.Y;
+            return new Point(x, y);
+        }
+
+        public static double Deg2Rad(double degree)
+        {
+            return degree * Math.PI / 180;
+        }
+
+        public static double Rad2Deg(double radian)
+        {
+            return radian * 180 / Math.PI;
+        }
+
+        /// <summary>
+        /// unit circle points: point at index i is the point at degree i of the unit circle.
+        /// </summary>
+        public static IReadOnlyList<Point> UnitCirclePoints = InitUnitCirclePoints();
+
+        private static IReadOnlyList<Point> InitUnitCirclePoints()
+        {
+            Point[] result = new Point[360];
+            for (int i = 0; i < result.Length; i++)
+            {
+                var a = MathEx.Deg2Rad(i);
+                result[i].X = Math.Cos(a);
+                result[i].Y = Math.Sin(a);
+            }
+            return result;
         }
     }
 }

@@ -1,11 +1,11 @@
-﻿//Apache2, 2016-2017, WinterDev
+﻿//Apache2, 2016-present, WinterDev
 
 using System.IO;
 
 namespace Typography.OpenFont.Tables
 {
 
-    //from https://www.microsoft.com/typography/otfntdev/standot/features.aspx
+    //https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
     //The order for applying standard features encoded in OpenType fonts:
 
     //Feature   	Feature function 	                                Layout operation 	Required
@@ -32,7 +32,7 @@ namespace Typography.OpenFont.Tables
         public FeatureTable[] featureTables;
         public static FeatureList CreateFrom(BinaryReader reader, long beginAt)
         {
-            //https://www.microsoft.com/typography/otspec/chapter2.htm
+            //https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2
 
             //------------------
             //FeatureList table                      
@@ -68,7 +68,7 @@ namespace Typography.OpenFont.Tables
             }
             return featureList;
         }
-        struct FeatureRecord
+        readonly struct FeatureRecord
         {
             public readonly uint featureTag;//4-byte ScriptTag identifier
             public readonly ushort offset; //Script Offset to Script table-from beginning of ScriptList
@@ -77,10 +77,8 @@ namespace Typography.OpenFont.Tables
                 this.featureTag = featureTag;
                 this.offset = offset;
             }
-            public string FeatureName
-            {
-                get { return Utils.TagToString(featureTag); }
-            }
+
+            public string FeatureName => Utils.TagToString(featureTag);
 #if DEBUG
             public override string ToString()
             {
@@ -125,16 +123,6 @@ namespace Typography.OpenFont.Tables
 
         public class FeatureTable
         {
-            //--------------------------
-            //Feature table
-            //--------------------------
-            //Type 	    Name 	        Description
-            //Offset16 	FeatureParams 	= NULL (reserved for offset to FeatureParams)
-            //uint16 	LookupCount 	Number of LookupList indices for this feature
-            //uint16 	LookupListIndex[LookupCount] 	Array of LookupList indices for this feature -zero-based (first lookup is LookupListIndex = 0)
-            //--------------------------
-
-            ushort[] lookupListIndice;
             public static FeatureTable CreateFrom(BinaryReader reader, long beginAt)
             {
                 reader.BaseStream.Seek(beginAt, SeekOrigin.Begin);
@@ -143,26 +131,12 @@ namespace Typography.OpenFont.Tables
                 ushort lookupCount = reader.ReadUInt16();
 
                 FeatureTable featureTable = new FeatureTable();
-                featureTable.lookupListIndice = Utils.ReadUInt16Array(reader, lookupCount);
-
+                featureTable.LookupListIndices = Utils.ReadUInt16Array(reader, lookupCount);
                 return featureTable;
             }
-            public ushort[] LookupListIndice
-            {
-                get
-                {
-                    return lookupListIndice;
-                }
-            }
-            public uint FeatureTag
-            {
-                get;
-                set;
-            }
-            public string TagName
-            {
-                get { return Utils.TagToString(this.FeatureTag); }
-            }
+            public ushort[] LookupListIndices { get; private set; }
+            public uint FeatureTag { get; set; }
+            public string TagName => Utils.TagToString(this.FeatureTag);
 #if DEBUG
             public override string ToString()
             {

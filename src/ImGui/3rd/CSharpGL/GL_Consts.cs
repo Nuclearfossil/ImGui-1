@@ -1,12 +1,7 @@
-﻿using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-
-namespace CSharpGL
+﻿namespace CSharpGL
 {
     public static partial class GL
     {
-
         #region The OpenGL constant definitions.
 
         //   OpenGL Version Identifier
@@ -746,7 +741,13 @@ namespace CSharpGL
         //   WIN_specular_fog 
         public static uint FOG_SPECULAR_TEXTURE_WIN = 0x80EC;
 
+        public const uint GL_DRAW_FRAMEBUFFER = 0x8CA9;
+        public const uint GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE = 0x8217;
+        public const uint GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE = 0x8212;
+        public const uint GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE = 0x8213;
+        public const uint GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE = 0x8214;
+        public const uint GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE = 0x8215;
+        public const uint GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE = 0x8216;
         #endregion
-
     }
 }

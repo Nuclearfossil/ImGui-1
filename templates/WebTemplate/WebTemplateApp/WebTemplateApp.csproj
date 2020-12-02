@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="PowerShell -NoProfile -ExecutionPolicy unrestricted -file $(ProjectDir)PostBuild.ps1 -ProjectDir $(ProjectDir) -TargetPath $(TargetPath)" />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="WebAssembly.Bindings">
+      <HintPath>..\MonoWasm\framework\WebAssembly.Bindings.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

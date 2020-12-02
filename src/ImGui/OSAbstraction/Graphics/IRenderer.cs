@@ -1,5 +1,4 @@
 ﻿using System;
-using ImGui.Common.Primitive;
 
 namespace ImGui.OSAbstraction.Graphics
 {
@@ -15,6 +14,11 @@ namespace ImGui.OSAbstraction.Graphics
         /// <param name="windowHandle">window handle, this could be some context info needed by the renderer. e.g. win32 HWND</param>
         /// <param name="size">size of default framebuffer</param>
         void Init(IntPtr windowHandle, Size size);
+        
+        /// <summary>
+        /// Use the renderer as the current renderer.
+        /// </summary>
+        void Bind();
 
         /// <summary>
         /// Clear the front buffer
@@ -22,21 +26,32 @@ namespace ImGui.OSAbstraction.Graphics
         void Clear(Color color);
 
         /// <summary>
-        /// Render the drawList
+        /// Draw meshes
         /// </summary>
-        /// <param name="drawList">drawlist contains the mesh to be rendered</param>
-        /// <param name="width">width of the rendering rectangle</param>
-        /// <param name="height">height of the rendering rectangle</param>
-        void RenderDrawList(DrawList drawList, int width, int height);
+        /// <param name="width">viewport width</param>
+        /// <param name="height">viewport height</param>
+        /// <param name="meshes">meshes</param>
+        void DrawMeshes(int width, int height, (Mesh shapeMesh, Mesh imageMesh, TextMesh textMesh) meshes);
 
         /// <summary>
         /// swap front(what is on the screen) and back(what is rendered by the renderer) buffer
         /// </summary>
         void SwapBuffers();
+        
+        /// <summary>
+        /// Don't use the renderer as the current renderer.
+        /// </summary>
+        void Unbind();
 
         /// <summary>
         /// shut down the renderer
         /// </summary>
         void ShutDown();
+
+        /// <summary>
+        /// Get back buffer data
+        /// </summary>
+        byte[] GetRawBackBuffer(out int width, out int height);
+
     }
 }

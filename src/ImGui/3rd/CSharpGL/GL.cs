@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-using System.Collections.Generic;
 using ImGui;
 
 namespace CSharpGL
 {
     /// <summary>
-    /// The OpenGL class wraps Sun's OpenGL 3D library.
+    /// OpenGL API
     /// </summary>
     public static partial class GL
     {
         #region Native
 
+        private const string OpenGL32 = "opengl32.dll";
+
         [DllImport("libGL.so", EntryPoint = "glXGetProcAddress")]
         internal static extern IntPtr glxGetProcAddress(string s);
-
 
         /// <summary>
         /// Gets a proc address.
@@ -78,9 +78,8 @@ namespace CSharpGL
             }
 
             //  Get the delegate for the function pointer.
-            Delegate del = Marshal.GetDelegateForFunctionPointer<T>(proc) as Delegate;
-
-            return del as T;
+            T del = Marshal.GetDelegateForFunctionPointer<T>(proc) as T;
+            return del;
         }
     }
 }

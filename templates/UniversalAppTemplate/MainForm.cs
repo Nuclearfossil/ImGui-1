@@ -1,5 +1,4 @@
 ﻿using ImGui;
-using ImGui.Common.Primitive;
 
 namespace UniversalAppTemplate
 {
@@ -9,7 +8,7 @@ namespace UniversalAppTemplate
         {
         }
 
-        Demo demo = new Demo();
+        private readonly Demo demo = new Demo();
 
         protected override void OnGUI()
         {

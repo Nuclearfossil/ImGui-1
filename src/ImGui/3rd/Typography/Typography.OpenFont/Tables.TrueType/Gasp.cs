@@ -1,4 +1,4 @@
-﻿//Apache2, 2016-2017, WinterDev
+﻿//Apache2, 2016-present, WinterDev
 using System;
 using System.IO;
 namespace Typography.OpenFont.Tables
@@ -8,7 +8,10 @@ namespace Typography.OpenFont.Tables
     /// </summary>
     class Gasp : TableEntry
     {
-        //https://www.microsoft.com/typography/otspec/gasp.htm
+        public const string _N = "gasp";
+        public override string Name => _N;
+        //
+        //https://docs.microsoft.com/en-us/typography/opentype/spec/gasp
 
 
         // This table contains information which describes the preferred rasterization techniques 
@@ -29,30 +32,25 @@ namespace Typography.OpenFont.Tables
         //the rasterizer may apply default rules to decide how to render the glyphs on grayscale devices.
 
         //The 'gasp' table consists of a header followed by groupings of 'gasp' records:
-        GaspRangeRecord[] rangeRecords;
-
-        public override string Name
-        {
-            get { return "gasp"; }
-        }
+        GaspRangeRecord[] _rangeRecords;
         protected override void ReadContentFrom(BinaryReader reader)
         {
 
-            //Type 	Name 	Description
-            //USHORT 	version 	Version number (set to 1)
-            //USHORT 	numRanges 	Number of records to follow
-            //GASPRANGE 	gaspRange[numRanges] 	Sorted by ppem
+            //Type 	        Name 	            Description
+            //USHORT 	    version 	        Version number (set to 1)
+            //USHORT 	    numRanges 	        Number of records to follow
+            //GASPRANGE     gaspRange[numRanges] 	Sorted by ppem
 
             //Each GASPRANGE record looks like this:
-            //Type 	Name 	Description
-            //USHORT 	rangeMaxPPEM 	Upper limit of range, in PPEM
-            //USHORT 	rangeGaspBehavior 	Flags describing desired rasterizer behavior.
+            //Type 	        Name 	            Description
+            //USHORT 	    rangeMaxPPEM 	    Upper limit of range, in PPEM
+            //USHORT 	    rangeGaspBehavior 	Flags describing desired rasterizer behavior.
             ushort version = reader.ReadUInt16();
             ushort numRanges = reader.ReadUInt16();
-            rangeRecords = new GaspRangeRecord[numRanges];
+            _rangeRecords = new GaspRangeRecord[numRanges];
             for (int i = 0; i < numRanges; ++i)
             {
-                rangeRecords[i] = new GaspRangeRecord(
+                _rangeRecords[i] = new GaspRangeRecord(
                     reader.ReadUInt16(),
                     (GaspRangeBehavior)reader.ReadUInt16());
             }
@@ -69,7 +67,7 @@ namespace Typography.OpenFont.Tables
             GASP_SYMMETRIC_SMOOTHING = 0x0008,
             GASP_SYMMETRIC_SMOOTHING_GASP_SYMMETRIC_GRIDFIT = 0x000C
         }
-        struct GaspRangeRecord
+        readonly struct GaspRangeRecord
         {
             public readonly ushort rangeMaxPPEM;
             public readonly GaspRangeBehavior rangeGaspBehavior;

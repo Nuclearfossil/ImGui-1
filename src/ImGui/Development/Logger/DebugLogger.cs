@@ -2,7 +2,7 @@
 
 namespace ImGui
 {
-    class DebugLogger : ILogger
+    internal class DebugLogger : ILogger
     {
         public void Clear()
         {

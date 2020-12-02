@@ -1,12 +1,13 @@
 using System;
 
-namespace ImGui.Common.Primitive
+namespace ImGui
 {
     /// <summary>
-    /// Rect - The primitive which represents a rectangle.  Rects are stored as
+    /// Rect - The Geometry which represents a rectangle.  Rects are stored as
     /// X, Y (Location) and Width and Height (Size).  As a result, Rects cannot have negative
     /// Width or Height.
     /// </summary>
+    [System.Diagnostics.DebuggerDisplay("({Min.X},{Min.Y})~({Max.X},{Max.Y}) W={Width} H={Height}")]
     [System.Diagnostics.DebuggerStepThrough]
     [Serializable]
     public struct Rect : IFormattable
@@ -99,8 +100,8 @@ namespace ImGui.Common.Primitive
         }
 
         /// <summary>
-        /// Constructor which sets the initial values to bound the (0,0) point and the point 
-        /// that results from (0,0) + size. 
+        /// Constructor which sets the initial values to bound the (0,0) point and the point
+        /// that results from (0,0) + size.
         /// </summary>
         public Rect(Size size)
         {
@@ -132,6 +133,11 @@ namespace ImGui.Common.Primitive
             _height = height;
         }
 
+        public static Rect FromCenterSize(Point center, Size extent)
+        {
+            return new Rect(center.X - extent.Width * 0.5, center.Y - extent.Height * 0.5, extent);
+        }
+
         #endregion
 
         /// <summary>
@@ -154,6 +160,17 @@ namespace ImGui.Common.Primitive
         public static Rect Big { get { return s_big; } }
 
         public static Rect Zero { get { return s_zero; } }
+
+        public bool IsZero
+        {
+            get
+            {
+                // The funny width and height tests are to handle NaNs
+                System.Diagnostics.Debug.Assert((!(_width < 0) && !(_height < 0)) || (this == Empty));
+
+                return _width == 0 || _height == 0;
+            }
+        }
 
         /// <summary>
         /// IsEmpty - this returns true if this rect is the Empty rectangle.
@@ -796,7 +813,7 @@ namespace ImGui.Common.Primitive
         /// <summary>
         /// Updates rectangle to be the bounds of the original value transformed
         /// by the matrix.
-        /// The Empty Rect is not affected by this call.        
+        /// The Empty Rect is not affected by this call.
         /// </summary>
         /// <param name="matrix"> Matrix </param>
         public void Transform(Matrix matrix)
@@ -1018,6 +1035,12 @@ namespace ImGui.Common.Primitive
         public static Rect Parse(string source)
         {
             throw new NotImplementedException();
+        }
+
+        public static bool AlmostEqual(Rect a, Rect b)
+        {
+            return MathEx.AmostEqual(a._x, b._x) && MathEx.AmostEqual(a._y, b._y)
+                && MathEx.AmostEqual(a._width, b._width) && MathEx.AmostEqual(a._height, b._height);
         }
 
         /// <summary>

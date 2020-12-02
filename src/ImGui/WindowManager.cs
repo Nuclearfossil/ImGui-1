@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using ImGui.Common;
-using ImGui.Common.Primitive;
 using ImGui.Input;
 
 namespace ImGui
@@ -66,7 +64,7 @@ namespace ImGui
                 if (excluding_childs && window.Flags.HaveFlag(WindowFlags.ChildWindow))
                     continue;
 
-                if (window.WindowClippedRect.Contains(pos))
+                if (window.Rect.Contains(pos))
                     return window;
             }
             return null;
@@ -136,7 +134,7 @@ namespace ImGui
                 {
                     if (!this.MovedWindow.Flags.HaveFlag(WindowFlags.NoMove))
                     {
-                        this.MovedWindow.PosFloat += Mouse.Instance.MouseDelta;
+                        this.MovedWindow.Position += Mouse.Instance.MouseDelta;
                     }
                     this.FocusWindow(this.MovedWindow);
                 }
@@ -175,11 +173,11 @@ namespace ImGui
                     // Scroll
                     if (!(window.Flags.HaveFlag(WindowFlags.NoScrollWithMouse)))
                     {
-                        var newScrollY = window.Scroll.Y - Math.Sign(Mouse.Instance.MouseWheel) * 20/*scroll step*/;
-                        float window_rounding = (float)window.Style.Get<double>(GUIStyleName.WindowRounding);
-                        double resize_corner_size = Math.Max(window.Style.FontSize * 1.35, window_rounding + 1.0 + window.Style.FontSize * 0.2);
+                        var newScrollY = window.ClientAreaNode.ScrollOffset.Y - Math.Sign(Mouse.Instance.MouseWheel) * 20/*scroll step*/;
+                        float window_rounding = (float)window.WindowContainer.RuleSet.Get<double>(StylePropertyName.WindowRounding);
+                        double resize_corner_size = Math.Max(window.WindowContainer.RuleSet.FontSize * 1.35, window_rounding + 1.0 + window.WindowContainer.RuleSet.FontSize * 0.2);
                         var contentSize = window.ContentRect.Size;
-                        var vH = window.Rect.Height - window.TitleBarHeight - window.Style.BorderVertical - window.Style.PaddingVertical;
+                        var vH = window.Rect.Height - window.TitleBarHeight - window.WindowContainer.RuleSet.BorderVertical - window.WindowContainer.RuleSet.PaddingVertical;
                         var cH = contentSize.Height;
                         if(cH > vH)
                         {
@@ -197,6 +195,17 @@ namespace ImGui
                 window.WasActive = window.Active;
                 window.Active = false;
                 window.Accessed = false;
+
+                //disable all nodes in the window
+                window.ClientAreaNode.Foreach(n => { n.ActiveSelf = false; return true; });
+                window.AbsoluteVisualList.ForEach(n => n.ActiveSelf = false);
+            }
+
+            // Clear temp data
+            for (int i = 0; i != this.Windows.Count; i++)
+            {
+                Window window = this.Windows[i];
+                window.TempData.Clear();
             }
 
             // No window should be open at the beginning of the frame.

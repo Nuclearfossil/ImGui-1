@@ -1,11 +1,11 @@
 using System;
 
-namespace ImGui.Common.Primitive
+namespace ImGui
 {
     /// <summary>
     /// Vector - A value type which defined a vector in terms of X and Y
     /// </summary>
-    [System.Diagnostics.DebuggerDisplay("X:{X} Y:{Y}")]
+    [System.Diagnostics.DebuggerDisplay("({X}, {Y})")]
     [System.Diagnostics.DebuggerStepThrough]
     [Serializable]
     public struct Vector : IFormattable
@@ -15,12 +15,23 @@ namespace ImGui.Common.Primitive
         /// <summary>
         /// Constructor which sets the vector's initial values
         /// </summary>
+        /// <param name="x"> float - The initial X </param>
+        /// <param name="y"> float - THe initial Y </param>
+        public Vector(float x, float y)
+        {
+            _x = x;
+            _y = y;
+        }
+
+        /// <summary>
+        /// Constructor which sets the vector's initial values
+        /// </summary>
         /// <param name="x"> double - The initial X </param>
         /// <param name="y"> double - THe initial Y </param>
         public Vector(double x, double y)
         {
-            _x = x;
-            _y = y;
+            _x = (float)x;
+            _y = (float)y;
         }
 
         #endregion
@@ -427,7 +438,7 @@ namespace ImGui.Common.Primitive
 
             set
             {
-                _x = value;
+                _x = (float)value;
             }
 
         }
@@ -444,7 +455,7 @@ namespace ImGui.Common.Primitive
 
             set
             {
-                _y = value;
+                _y = (float)value;
             }
 
         }
@@ -503,22 +514,15 @@ namespace ImGui.Common.Primitive
         /// </returns>
         internal string ConvertToString(string format, IFormatProvider provider)
         {
-            throw new NotImplementedException();
-#if false
-    // Helper to get the numeric list separator for a given culture.
-            char separator = MS.Internal.TokenizerHelper.GetNumericListSeparator(provider);
             return String.Format(provider,
-                                 "{1:" + format + "}{0}{2:" + format + "}",
-                                 separator,
+                                 "{0:" + format + "},{1:" + format + "}",
                                  _x,
                                  _y);
-#endif
-
         }
 
 
-        internal double _x;
-        internal double _y;
+        internal float _x;
+        internal float _y;
 
     }
 }

@@ -1,63 +1,74 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Description>ImGui Framework Library</Description>
     <Company>zwcloud</Company>
     <Product>zwcloud.ImGui</Product>
-    <Copyright>Copyright (c) 2016-2017 Zou Wei, https://zwcloud.net/, zwcloud@hotmail.com</Copyright>
+    <Copyright>Copyright (c) 2016-2019 Zou Wei, https://zwcloud.net/, zwcloud@hotmail.com</Copyright>
     <PackageProjectUrl>https://github.com/zwcloud/ImGui</PackageProjectUrl>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <SignAssembly>False</SignAssembly>
     <RepositoryUrl>https://github.com/zwcloud/ImGui</RepositoryUrl>
     <PackageLicenseUrl>https://github.com/zwcloud/ImGui/blob/master/LICENSE.txt</PackageLicenseUrl>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <PackageTags>GUI</PackageTags>
-    <AssemblyVersion>0.0.0.1</AssemblyVersion>
-    <FileVersion>0.0.0.1</FileVersion>
+    <AssemblyVersion>0.0.0.2</AssemblyVersion>
+    <FileVersion>0.0.0.2</FileVersion>
     <ApplicationIcon />
     <Win32Resource />
+    <LangVersion>latest</LangVersion>
+    <Configurations>Debug;Release</Configurations>
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis>true</RunAnalyzersDuringLiveAnalysis>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ImageSharp" Version="1.0.0-alpha9" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.9.6">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="3.1.1" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-beta0005" />
+    <PackageReference Include="System.Memory" Version="4.5.3" />
   </ItemGroup>
   
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <WarningLevel>4</WarningLevel>
-    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
     <NoWarn>1701;1702;1705;0162</NoWarn>
+    <WarningsAsErrors />
+    <DefineConstants></DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
+    <NoWarn>1701;1702;1705;0162</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Control\tobefixed\**" />
-    <Compile Remove="DrawList\Font\**" />
     <EmbeddedResource Remove="Control\tobefixed\**" />
-    <EmbeddedResource Remove="DrawList\Font\**" />
     <None Remove="Control\tobefixed\**" />
-    <None Remove="DrawList\Font\**" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="Common\IO.cs" />
     <Compile Remove="Common\ListEx.cs" />
-    <Compile Remove="Control\Box.cs" />
-    <Compile Remove="Control\HoverButton.cs" />
-    <Compile Remove="Control\PolygonButton.cs" />
+    <Compile Remove="Control\Window.Child.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Style\GUIStyle.Option.cs" />
+    <None Remove="*.DotSettings" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Style\StyleRuleSet.Builder.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,9 +81,24 @@
     <None Update="assets\fonts\DroidSans.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="assets\fonts\msjh.ttf">
+    <None Update="assets\fonts\Terminus.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="assets\images\button.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="assets\images\checker.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="assets\images\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="WebAssembly.Bindings">
+      <HintPath>..\..\templates\WebTemplate\MonoWasm\framework\WebAssembly.Bindings.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

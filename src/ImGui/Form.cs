@@ -1,7 +1,8 @@
 ﻿using System;
-using ImGui.Common.Primitive;
+using System.IO;
 using ImGui.OSAbstraction.Graphics;
 using ImGui.OSAbstraction.Window;
+using SixLabors.ImageSharp.Processing;
 
 namespace ImGui
 {
@@ -16,7 +17,7 @@ namespace ImGui
 
         internal IRenderer renderer;
         internal GUIContext uiContext = new GUIContext();
-        internal DrawList OverlayDrawList = new DrawList();
+        private string debugName;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Form"/> class at specific rectangle.
@@ -26,17 +27,30 @@ namespace ImGui
         {
         }
 
-        internal Form(Point position, Size size, string Title = "ImGui Form")
+        internal Form(Rect rect, string title, WindowTypes type)
+            : this(rect.TopLeft, rect.Size, title, type)
         {
-            this.nativeWindow = Application.PlatformContext.CreateWindow(position, size, WindowTypes.Regular);
-            this.nativeWindow.Title = Title;
+        }
 
-            Profile.Start("CreateRenderer");
+        internal Form(Point position, Size size, string title = "ImGui Form",
+            WindowTypes type = WindowTypes.Regular)
+        {
+            this.debugName = title;
+
+            Profile.Start("Create Window");
+            this.nativeWindow = Application.PlatformContext.CreateWindow(position, size, type);
+            if (type == WindowTypes.Regular)
+            {
+                this.nativeWindow.Title = title;
+            }
+            Profile.End();
+
+            Profile.Start("Create Renderer");
             this.renderer = Application.PlatformContext.CreateRenderer();
             this.renderer.Init(this.Pointer, this.nativeWindow.ClientSize);
             Profile.End();
 
-            OverlayDrawList.Init();
+            uiContext.InitializeBackForegroundRenderContext();
         }
 
         internal void MainLoop(Action guiMethod)
@@ -105,6 +119,17 @@ namespace ImGui
         internal Point ClientToScreen(Point point)
         {
             return this.nativeWindow.ClientToScreen(point);
+        }
+
+        internal void SaveClientAreaToPng(string filePath)
+        {
+            byte[] data = this.renderer.GetRawBackBuffer(out var width, out var height);
+            var image = SixLabors.ImageSharp.Image.LoadPixelData<SixLabors.ImageSharp.PixelFormats.Rgba32>(SixLabors.ImageSharp.Configuration.Default, data, width, height);
+            image.Mutate(x => x.Flip(FlipMode.Vertical));
+            using (var stream = File.OpenWrite(filePath))
+            {
+                SixLabors.ImageSharp.ImageExtensions.SaveAsPng(image, stream);
+            }
         }
     }
 }

@@ -1,10 +1,6 @@
 ﻿using ImGui;
 using System;
-using System.Diagnostics;
 using Xunit;
-using System.Collections.Generic;
-using System.Text;
-using Typography.Rendering;
 using System.IO;
 using Typography.OpenFont;
 
@@ -12,7 +8,7 @@ namespace TextRenderingTest
 {
     public class TypographyTest
     {
-        const string FontFile = @"W:\VS2015\ImGui\templates\TestUI\Font\DroidSans.ttf";
+        static readonly string FontFile = Utility.FontDir + "DroidSans.ttf";
         private Typeface typeFace;
 
         public TypographyTest()
@@ -27,8 +23,9 @@ namespace TextRenderingTest
         [Fact]
         public void ShouldGetCorrectContourFromTypeFace()
         {
-            var glyph = typeFace.GetGlyphByIndex(36);
+            var glyph = typeFace.GetGlyph(36);
             var points = glyph.GlyphPoints;
+            //TODO check points
         }
     }
 }

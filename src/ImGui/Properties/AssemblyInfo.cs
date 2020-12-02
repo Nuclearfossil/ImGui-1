@@ -1,7 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("ImGui.UnitTest")]
-[assembly: InternalsVisibleTo("LayoutTest")]
-[assembly: InternalsVisibleTo("PrimitiveRenderingTest")]
+[assembly: InternalsVisibleTo("ImGui.ControlTest")]
 [assembly: InternalsVisibleTo("TextRenderingTest")]
-[assembly: InternalsVisibleTo("ControlTest")]
+[assembly: InternalsVisibleTo("TestUtil")]

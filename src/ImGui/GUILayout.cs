@@ -1,6 +1,4 @@
 ﻿using System;
-using ImGui.Common.Primitive;
-using ImGui.Layout;
 
 namespace ImGui
 {
@@ -34,10 +32,10 @@ namespace ImGui
 
         #region ID
 
-        public static void PushID(int int_id)
+        public static void PushID(int id)
         {
             Window window = GetCurrentWindow();
-            window.IDStack.Push(window.GetID(int_id));
+            window.IDStack.Push(id);//we don't re-hash pushed raw id
         }
 
         public static void PushID(string str_id)
@@ -46,10 +44,10 @@ namespace ImGui
             window.IDStack.Push(window.GetID(str_id));
         }
 
-        public static void PopID()
+        public static int PopID()
         {
             Window window = GetCurrentWindow();
-            window.IDStack.Pop();
+            return window.IDStack.Pop();
         }
 
         #endregion
@@ -66,6 +64,21 @@ namespace ImGui
             Window window = g.WindowManager.CurrentWindow;
             window.Accessed = true;
             return window;
+        }
+
+        /// <summary>
+        /// Is last simple control being hovered?
+        /// Note this won't work for composite controls like ListBox.
+        /// </summary>
+        internal static bool IsItemHovered()
+        {
+            Window window = GetCurrentWindow();
+            if (window.IDStack.Count == 0)
+            {
+                return false;
+            }
+
+            return window.TempData.LastItemState == GUIState.Hover;
         }
 
         #region stack-layout
@@ -102,18 +115,15 @@ namespace ImGui
         public static void BeginHorizontal(string str_id, LayoutOptions? options)
         {
             Window window = GetCurrentWindow();
-
             int id = window.GetID(str_id);
             PushID(id);
-
-            window.StackLayout.BeginLayoutGroup(id, false, options, str_id);
+            window.RenderTree.BeginLayoutGroup(id, false, options, str_id);
         }
 
         public static void EndHorizontal()
         {
             Window window = GetCurrentWindow();
-
-            window.StackLayout.EndLayoutGroup();
+            window.RenderTree.EndLayoutGroup();
             PopID();
         }
 
@@ -129,21 +139,15 @@ namespace ImGui
             int id = window.GetID(str_id);
             PushID(id);
 
-            window.StackLayout.BeginLayoutGroup(id, true, options, str_id);
+            window.RenderTree.BeginLayoutGroup(id, true, options, str_id);
         }
 
         public static void EndVertical()
         {
             Window window = GetCurrentWindow();
 
-            window.StackLayout.EndLayoutGroup();
+            window.RenderTree.EndLayoutGroup();
             PopID();
-        }
-
-        public static Rect GetWindowClientRect()
-        {
-            Window window = GetCurrentWindow();
-            return window.ClientRect;
         }
 
         #endregion
@@ -154,41 +158,41 @@ namespace ImGui
         /// Set the width of a control.
         /// </summary>
         /// <param name="width">width value</param>
-        /// <returns>A <see cref="LayoutOption"/> that will set the width of a control/group.</returns>
-        public static LayoutOptions Width(int width) => new LayoutOptions().Width(width);
+        /// <returns>A <see cref="LayoutOptions"/> that will set the width of a control/group.</returns>
+        public static LayoutOptions Width(double width) => new LayoutOptions().Width(width);
 
         /// <summary>
         /// Set the height of a control.
         /// </summary>
         /// <param name="height">height value</param>
-        /// <returns>A <see cref="LayoutOption"/> that will set the height of a control/group.</returns>
-        public static LayoutOptions Height(int height) => new LayoutOptions().Height(height);
+        /// <returns>A <see cref="LayoutOptions"/> that will set the height of a control/group.</returns>
+        public static LayoutOptions Height(double height) => new LayoutOptions().Height(height);
 
         /// <summary>
         /// Set whether the width of a control should be expanded to occupy as much space as possible.
         /// </summary>
         /// <param name="expand">expanded?</param>
-        /// <returns>A <see cref="LayoutOption"/> that will expand the width of a control/group.</returns>
+        /// <returns>A <see cref="LayoutOptions"/> that will expand the width of a control/group.</returns>
         public static LayoutOptions ExpandWidth(bool expand) => new LayoutOptions().ExpandWidth(expand);
 
         /// <summary>
         /// Set whether the height of a control should be expanded to occupy as much space as possible.
         /// </summary>
         /// <param name="expand">expanded?</param>
-        /// <returns>A <see cref="LayoutOption"/> that will expand the height of a control/group.</returns>
+        /// <returns>A <see cref="LayoutOptions"/> that will expand the height of a control/group.</returns>
         public static LayoutOptions ExpandHeight(bool expand) => new LayoutOptions().ExpandHeight(expand);
 
         /// <summary>
         /// Set the factor when expanding the width of a control.
         /// </summary>
         /// <param name="factor">the value of the factor</param>
-        /// <returns>A <see cref="LayoutOption"/> that will set the factor when expanding the width of a control/group.</returns>
+        /// <returns>A <see cref="LayoutOptions"/> that will set the factor when expanding the width of a control/group.</returns>
         public static LayoutOptions StretchWidth(int factor) => new LayoutOptions().StretchWidth(factor);
         /// <summary>
         /// Set the factor when expanding the height of a control.
         /// </summary>
         /// <param name="factor">the value of the factor</param>
-        /// <returns>A <see cref="LayoutOption"/> that will set the factor when expanding the height of a control/group.</returns>
+        /// <returns>A <see cref="LayoutOptions"/> that will set the factor when expanding the height of a control/group.</returns>
         public static LayoutOptions StretchHeight(int factor) => new LayoutOptions().StretchHeight(factor);
 
         #endregion

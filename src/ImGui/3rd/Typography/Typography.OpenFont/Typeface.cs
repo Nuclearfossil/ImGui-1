@@ -1,267 +1,346 @@
-﻿//Apache2, 2017, WinterDev
+﻿//Apache2, 2017-present, WinterDev
 //Apache2, 2014-2016, Samuel Carlsson, WinterDev
+using System;
 using System.Collections.Generic;
 using Typography.OpenFont.Tables;
 
 namespace Typography.OpenFont
 {
-    public class Typeface
+
+    public partial class Typeface
     {
-        readonly Bounds _bounds;
-        readonly ushort _unitsPerEm;
-        readonly Glyph[] _glyphs;
-        readonly CharacterMap[] _cmaps;
+
         //TODO: implement vertical metrics
-        readonly HorizontalMetrics _horizontalMetrics;
-        readonly NameEntry _nameEntry;
+        HorizontalMetrics _hMetrics;
+        NameEntry _nameEntry;
+        Glyph[] _glyphs;
+        CFF.Cff1FontSet _cff1FontSet;
+        TableHeader[] _tblHeaders;
+        bool _hasTtfOutline;
+        bool _hasCffData;
+        internal bool _useTypographicMertic;
+#if DEBUG 
+        static int s_dbugTotalId;
+        public readonly int dbugId = ++s_dbugTotalId;
+#endif
 
-        Kern _kern;
-
-        internal Typeface(
-            NameEntry nameEntry,
-            Bounds bounds,
-            ushort unitsPerEm,
-            Glyph[] glyphs,
-            CharacterMap[] cmaps,
-            HorizontalMetrics horizontalMetrics,
-            OS2Table os2Table)
+        internal Typeface()
         {
-            _nameEntry = nameEntry;
-            _bounds = bounds;
-            _unitsPerEm = unitsPerEm;
-            _glyphs = glyphs;
-            _cmaps = cmaps;
-            _horizontalMetrics = horizontalMetrics;
-            OS2Table = os2Table;
+            //blank typefaces 
+#if DEBUG
+            if (dbugId == 5)
+            {
 
-            //---------------------------------------------------
-            //cmap - Character To Glyph Index Mapping Table
-            //---------------------------------------------------
-            //This table defines the mapping of character codes to the glyph index values used in the font. It may contain more than one subtable, in order to support more than one character encoding scheme.Character codes that do not correspond to any glyph in the font should be mapped to glyph index 0.The glyph at this location must be a special glyph representing a missing character, commonly known as .notdef.
-            //The table header indicates the character encodings for which subtables are present.Each subtable is in one of seven possible formats and begins with a format code indicating the format used.
-            //The platform ID and platform - specific encoding ID in the header entry(and, in the case of the Macintosh platform, the language field in the subtable itself) are used to specify a particular 'cmap' encoding.The header entries must be sorted first by platform ID, then by platform - specific encoding ID, and then by the language field in the corresponding subtable.Each platform ID, platform - specific encoding ID, and subtable language combination may appear only once in the 'cmap' table.
-            //When building a Unicode font for Windows, the platform ID should be 3 and the encoding ID should be 1.When building a symbol font for Windows, the platform ID should be 3 and the encoding ID should be 0.When building a font that will be used on the Macintosh, the platform ID should be 1 and the encoding ID should be 0.
-            //All Microsoft Unicode BMP encodings(Platform ID = 3, Encoding ID = 1) must provide at least a Format 4 'cmap' subtable.If the font is meant to support supplementary(non - BMP) Unicode characters, it will additionally need a Format 12 subtable with a platform encoding ID 10.The contents of the Format 12 subtable need to be a superset of the contents of the Format 4 subtable.Microsoft strongly recommends using a BMP Unicode 'cmap' for all fonts. However, some other encodings that appear in current fonts follow:
-            //Windows Encodings
-            //Platform ID Encoding ID Description
-            //3   0   Symbol
-            //3   1   Unicode BMP(UCS - 2)
-            //3   2   ShiftJIS
-            //3   3   PRC
-            //3   4   Big5
-            //3   5   Wansung
-            //3   6   Johab
-            //3   7   Reserved
-            //3   8   Reserved
-            //3   9   Reserved
-            //3   10  Unicode UCS - 4
-            //---------------------------------------------------
+            }
+#endif
         }
 
+        internal void SetTableEntryCollection(TableHeader[] headers) => _tblHeaders = headers;
+
+        internal void SetBasicTypefaceTables(OS2Table os2Table,
+             NameEntry nameEntry,
+             Head head,
+             HorizontalMetrics horizontalMetrics)
+        {
+            OS2Table = os2Table;
+            _nameEntry = nameEntry;
+            Head = head;
+            Bounds = head.Bounds;
+            UnitsPerEm = head.UnitsPerEm;
+            _hMetrics = horizontalMetrics;
+        }
+
+        internal Head Head { get; set; }
+
+        internal void SetTtfGlyphs(Glyph[] glyphs)
+        {
+            _glyphs = glyphs;
+            _hasTtfOutline = true;
+        }
+        internal void SetBitmapGlyphs(Glyph[] glyphs, BitmapFontGlyphSource bitmapFontGlyphSource)
+        {
+            _glyphs = glyphs;
+            _bitmapFontGlyphSource = bitmapFontGlyphSource;
+        }
+        internal void SetCffFontSet(CFF.Cff1FontSet cff1FontSet)
+        {
+            _cff1FontSet = cff1FontSet;
+            _hasCffData = true;
+
+            Glyph[] exisitingGlyphs = _glyphs;
+
+            _glyphs = cff1FontSet._fonts[0]._glyphs; //TODO: review _fonts[0]
+
+            if (exisitingGlyphs != null)
+            {
+                //
+#if DEBUG
+                if (_glyphs.Length != exisitingGlyphs.Length)
+                {
+                    throw new NotSupportedException();
+                }
+#endif
+                for (int i = 0; i < exisitingGlyphs.Length; ++i)
+                {
+                    Glyph.CopyExistingGlyphInfo(exisitingGlyphs[i], _glyphs[i]);
+                }
+            }
+
+        }
+
+        public Languages Languages { get; } = new Languages();
         /// <summary>
         /// control values in Font unit
         /// </summary>
         internal int[] ControlValues { get; set; }
         internal byte[] PrepProgramBuffer { get; set; }
         internal byte[] FpgmProgramBuffer { get; set; }
-        internal MaxProfile MaxProfile { get; set; }
 
-        public bool HasPrepProgramBuffer { get { return PrepProgramBuffer != null; } }
-        internal Kern KernTable
-        {
-            get { return _kern; }
-            set { this._kern = value; }
-        }
-        internal Gasp GaspTable
-        {
-            get;
-            set;
-        }
-        internal OS2Table OS2Table
-        {
-            get;
-            set;
-        }
+        internal MaxProfile MaxProfile { get; set; }
+        internal Cmap CmapTable { get; set; }
+        internal Kern KernTable { get; set; }
+        internal Gasp GaspTable { get; set; }
+        internal HorizontalHeader HheaTable { get; set; }
+        internal OS2Table OS2Table { get; set; }
+        //
+        public bool HasPrepProgramBuffer => PrepProgramBuffer != null;
+
+
         /// <summary>
-        /// actual font filename
+        /// actual font filename (optional)
         /// </summary>
         public string Filename { get; set; }
         /// <summary>
-        /// OS2 sTypoAscender, in font designed unit
-        /// </summary>
-        public short Ascender
-        {
-            get
-            {
+        /// OS2 sTypoAscender/HheaTable.Ascent, in font designed unit
+        /// </summary>         
+        public short Ascender => _useTypographicMertic ? OS2Table.sTypoAscender : HheaTable.Ascent;
 
-                return OS2Table.sTypoAscender;
-            }
-        }
         /// <summary>
         /// OS2 sTypoDescender, in font designed unit
         /// </summary>
-        public short Descender
-        {
-            get
-            {
-                return OS2Table.sTypoDescender;
-            }
-        }
+        public short Descender => _useTypographicMertic ? OS2Table.sTypoDescender : HheaTable.Descent;
+        /// <summary>
+        /// OS2 usWinAscender
+        /// </summary>
+        public ushort ClipedAscender => OS2Table.usWinAscent;
+        /// <summary>
+        /// OS2 usWinDescender
+        /// </summary>
+        public ushort ClipedDescender => OS2Table.usWinDescent;
+
         /// <summary>
         /// OS2 Linegap
         /// </summary>
-        public short LineGap
-        {
-            get
-            {
-                return OS2Table.sTypoLineGap;
-            }
-        }
+        public short LineGap => _useTypographicMertic ? OS2Table.sTypoLineGap : HheaTable.LineGap;
+        //The typographic line gap for this font.
+        //Remember that this is not the same as the LineGap value in the 'hhea' table, 
+        //which Apple defines in a far different manner.
+        //The suggested usage for sTypoLineGap is 
+        //that it be used in conjunction with unitsPerEm 
+        //to compute a typographically correct default line spacing.
+        //
+        //Typical values average 7 - 10 % of units per em.
+        //The goal is to free applications from Macintosh or Windows - specific metrics
+        //which are constrained by backward compatability requirements
+        //(see chapter, “Recommendations for OpenType Fonts”).
+        //These new metrics, when combined with the character design widths,
+        //will allow applications to lay out documents in a typographically correct and portable fashion. 
+        //These metrics will be exposed through Windows APIs.
+        //Macintosh applications will need to access the 'sfnt' resource and 
+        //parse it to extract this data from the “OS / 2” table
+        //(unless Apple exposes the 'OS/2' table through a new API)
+        //---------------
+
+        public string Name => _nameEntry.FontName;
+        public string FontSubFamily => _nameEntry.FontSubFamily;
+        public string PostScriptName => _nameEntry.PostScriptName;
+        public string VersionString => _nameEntry.VersionString;
+        public string UniqueFontIden => _nameEntry.UniqueFontIden;
+
+        internal NameEntry NameEntry => _nameEntry;
+
+        public int GlyphCount => _glyphs.Length;
         /// <summary>
-        /// overall calculated line spacing 
+        /// find glyph index by codepoint
         /// </summary>
-        public int LineSpacing
+        /// <param name="codepoint"></param>
+        /// <param name="nextCodepoint"></param>
+        /// <returns></returns>
+
+        public ushort GetGlyphIndex(int codepoint, int nextCodepoint, out bool skipNextCodepoint)
         {
-            get
+            return CmapTable.GetGlyphIndex(codepoint, nextCodepoint, out skipNextCodepoint);
+        }
+        public ushort GetGlyphIndex(int codepoint)
+        {
+            return CmapTable.GetGlyphIndex(codepoint, 0, out bool skipNextCodepoint);
+        }
+        public void CollectUnicode(List<uint> unicodes)
+        {
+            CmapTable.CollectUnicode(unicodes);
+        }
+
+        public Glyph GetGlyphByName(string glyphName) => GetGlyph(GetGlyphIndexByName(glyphName));
+
+        Dictionary<string, ushort> _cachedGlyphDicByName;
+
+        void UpdateCff1FontSetNamesCache()
+        {
+            if (_cff1FontSet != null && _cachedGlyphDicByName == null)
             {
+                //create cache data
+                _cachedGlyphDicByName = new Dictionary<string, ushort>();
+                for (int i = 1; i < _glyphs.Length; ++i)
+                {
+                    Glyph glyph = _glyphs[i];
 
-                //from https://www.microsoft.com/typography/OTSpec/recom.htm#tad
-                //sTypoAscender, sTypoDescender and sTypoLineGap
-                //sTypoAscender is used to determine the optimum offset from the top of a text frame to the first baseline.
-                //sTypoDescender is used to determine the optimum offset from the last baseline to the bottom of the text frame. 
-                //The value of (sTypoAscender - sTypoDescender) is recommended to equal one em.
-                //
-                //While the OpenType specification allows for CJK (Chinese, Japanese, and Korean) fonts' sTypoDescender and sTypoAscender 
-                //fields to specify metrics different from the HorizAxis.ideo and HorizAxis.idtp baselines in the 'BASE' table,
-                //CJK font developers should be aware that existing applications may not read the 'BASE' table at all but simply use 
-                //the sTypoDescender and sTypoAscender fields to describe the bottom and top edges of the ideographic em-box. 
-                //If developers want their fonts to work correctly with such applications, 
-                //they should ensure that any ideographic em-box values in the 'BASE' table describe the same bottom and top edges as the sTypoDescender and
-                //sTypoAscender fields. 
-                //See the sections “OpenType CJK Font Guidelines“ and ”Ideographic Em-Box“ for more details.
-
-                //For Western fonts, the Ascender and Descender fields in Type 1 fonts' AFM files are a good source of sTypoAscender
-                //and sTypoDescender, respectively. 
-                //The Minion Pro font family (designed on a 1000-unit em), 
-                //for example, sets sTypoAscender = 727 and sTypoDescender = -273.
-
-                //sTypoAscender, sTypoDescender and sTypoLineGap specify the recommended line spacing for single-spaced horizontal text.
-                //The baseline-to-baseline value is expressed by:
-                //OS/2.sTypoAscender - OS/2.sTypoDescender + OS/2.sTypoLineGap
-
-                //sTypoLineGap will usually be set by the font developer such that the value of the above expression is approximately 120% of the em.
-                //The application can use this value as the default horizontal line spacing. 
-                //The Minion Pro font family (designed on a 1000-unit em), for example, sets sTypoLineGap = 200.
-
-
-                return Ascender - Descender + LineGap;
+                    if (glyph._cff1GlyphData != null && glyph._cff1GlyphData.Name != null)
+                    {
+                        _cachedGlyphDicByName.Add(glyph._cff1GlyphData.Name, (ushort)i);
+                    }
+                    else
+                    {
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine("Cff unknown glyphname");
+#endif
+                    }
+                }
             }
         }
-        public string Name
+        public ushort GetGlyphIndexByName(string glyphName)
         {
-            get { return _nameEntry.FontName; }
-        }
-        public string FontSubFamily
-        {
-            get { return _nameEntry.FontSubFamily; }
-        }
+            if (glyphName == null) return 0;
 
-
-        CharacterMap _selectedCmap;
-
-        public ushort LookupIndex(char character)
-        {
-            // TODO: What if there are none or several tables?
-
-            if (_selectedCmap == null)
+            if (_cff1FontSet != null && _cachedGlyphDicByName == null)
             {
-                int j = _cmaps.Length;
-                if (j > 1)
+                //we create a dictionary 
+                //create cache data
+                _cachedGlyphDicByName = new Dictionary<string, ushort>();
+                for (int i = 1; i < _glyphs.Length; ++i)
                 {
-                    //find proper cmap , what proper?
-                    //https://www.microsoft.com/typography/OTSPEC/cmap.htm
-                    //...When building a Unicode font for Windows, the platform ID should be 3 and the encoding ID should be 1
-
-                    for (int i = 0; i < j; ++i)
+                    Glyph glyph = _glyphs[i];
+                    if (glyph._cff1GlyphData.Name != null)
                     {
-                        CharacterMap cmap = _cmaps[i];
-                        if (cmap.PlatformId == 3 && cmap.EncodingId == 1)
-                        {
-                            //platform 3 = font for Windows
-                            _selectedCmap = cmap;
-                            break;
-                        }
+                        _cachedGlyphDicByName.Add(glyph._cff1GlyphData.Name, (ushort)i);
                     }
-
-                    if (_selectedCmap == null)
+                    else
                     {
-                        //not found
-                        throw new System.NotSupportedException();
+#if DEBUG
+                        System.Diagnostics.Debug.WriteLine("Cff unknown glyphname");
+#endif
                     }
-                    //
+                }
+                return _cachedGlyphDicByName.TryGetValue(glyphName, out ushort glyphIndex) ? glyphIndex : (ushort)0;
+            }
+            else if (PostTable != null)
+            {
+                if (PostTable.Version == 2)
+                {
+                    return PostTable.GetGlyphIndex(glyphName);
                 }
                 else
                 {
-                    _selectedCmap = _cmaps[0];
+                    //check data from adobe glyph list 
+                    //from the unicode value
+                    //select glyph index   
+
+                    //we use AdobeGlyphList
+                    //from https://github.com/adobe-type-tools/agl-aglfn/blob/master/glyphlist.txt
+
+                    //but user can provide their own map here...
+
+                    return GetGlyphIndex(AdobeGlyphList.GetUnicodeValueByGlyphName(glyphName));
                 }
             }
-
-            return _selectedCmap.CharacterToGlyphIndex(character);
+            return 0;
         }
 
-        public Glyph Lookup(char character)
+        public IEnumerable<GlyphNameMap> GetGlyphNameIter()
         {
-            return _glyphs[LookupIndex(character)];
+            if (_cachedGlyphDicByName == null && _cff1FontSet != null)
+            {
+                UpdateCff1FontSetNamesCache();
+            }
+
+            if (_cachedGlyphDicByName != null)
+            {
+                //iter from here
+                foreach (var kv in _cachedGlyphDicByName)
+                {
+                    yield return new GlyphNameMap(kv.Value, kv.Key);
+                }
+            }
+            else if (PostTable.Version == 2)
+            {
+                foreach (var kp in PostTable.GlyphNames)
+                {
+                    yield return new GlyphNameMap(kp.Key, kp.Value);
+                }
+            }
         }
-        public Glyph GetGlyphByIndex(int glyphIndex)
+        public Glyph GetGlyph(ushort glyphIndex)
         {
-            return _glyphs[glyphIndex];
+            if (glyphIndex < _glyphs.Length)
+            {
+                return _glyphs[glyphIndex];
+            }
+            else
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine("found unknown glyph:" + glyphIndex);
+#endif
+                return _glyphs[0]; //return empty glyph?;
+            }
         }
 
-        public ushort GetAdvanceWidth(char character)
-        {
-            return _horizontalMetrics.GetAdvanceWidth(LookupIndex(character));
-        }
-        public ushort GetHAdvanceWidthFromGlyphIndex(int glyphIndex)
-        {
-
-            return _horizontalMetrics.GetAdvanceWidth(glyphIndex);
-        }
-        public short GetHFrontSideBearingFromGlyphIndex(int glyphIndex)
-        {
-            return _horizontalMetrics.GetLeftSideBearing(glyphIndex);
-        }
+        public ushort GetAdvanceWidthFromGlyphIndex(ushort glyphIndex) => _hMetrics.GetAdvanceWidth(glyphIndex);
+        public short GetLeftSideBearing(ushort glyphIndex) => _hMetrics.GetLeftSideBearing(glyphIndex);
         public short GetKernDistance(ushort leftGlyphIndex, ushort rightGlyphIndex)
         {
-            return _kern.GetKerningDistance(leftGlyphIndex, rightGlyphIndex);
+            //DEPRECATED -> use OpenFont layout instead
+            return this.KernTable.GetKerningDistance(leftGlyphIndex, rightGlyphIndex);
         }
-        public Bounds Bounds { get { return _bounds; } }
-        public ushort UnitsPerEm { get { return _unitsPerEm; } }
-        public Glyph[] Glyphs { get { return _glyphs; } }
+        //
+        public Bounds Bounds { get; private set; }
+        public ushort UnitsPerEm { get; private set; }
+        public short UnderlinePosition => PostTable.UnderlinePosition; //TODO: review here
+        //
 
+        const int s_pointsPerInch = 72;//point per inch, fix?        
 
-        const int pointsPerInch = 72;
+        /// <summary>
+        /// default dpi
+        /// </summary>
+        public static uint DefaultDpi { get; set; } = 96;
+
         /// <summary>
         /// convert from point-unit value to pixel value
         /// </summary>
         /// <param name="targetPointSize"></param>
-        /// <param name="resolution"></param>
+        /// <param name="resolution">dpi</param>
         /// <returns></returns>
-        public static float ConvPointsToPixels(float targetPointSize, int resolution = 96)
+        public static float ConvPointsToPixels(float targetPointSize, int resolution = -1)
         {
             //http://stackoverflow.com/questions/139655/convert-pixels-to-points
             //points = pixels * 72 / 96
             //------------------------------------------------
             //pixels = targetPointSize * 96 /72
             //pixels = targetPointSize * resolution / pointPerInch
-            return targetPointSize * resolution / pointsPerInch;
+
+            if (resolution < 0)
+            {
+                //use current DefaultDPI
+                resolution = (int)DefaultDpi;
+            }
+
+            return targetPointSize * resolution / s_pointsPerInch;
         }
         /// <summary>
         /// calculate scale to target pixel size based on current typeface's UnitsPerEm
         /// </summary>
         /// <param name="targetPixelSize">target font size in point unit</param>
         /// <returns></returns>
-        public float CalculateToPixelScale(float targetPixelSize)
+        public float CalculateScaleToPixel(float targetPixelSize)
         {
             //1. return targetPixelSize / UnitsPerEm
             return targetPixelSize / this.UnitsPerEm;
@@ -270,54 +349,40 @@ namespace Typography.OpenFont
         ///  calculate scale to target pixel size based on current typeface's UnitsPerEm
         /// </summary>
         /// <param name="targetPointSize">target font size in point unit</param>
-        /// <param name="resolution"></param>
+        /// <param name="resolution">dpi</param>
         /// <returns></returns>
-        public float CalculateToPixelScaleFromPointSize(float targetPointSize, int resolution = 96)
+        public float CalculateScaleToPixelFromPointSize(float targetPointSize, int resolution = -1)
         {
             //1. var sizeInPixels = ConvPointsToPixels(sizeInPointUnit);
-            //2. return  sizeInPixels / UnitsPerEm
-            return (targetPointSize * resolution / pointsPerInch) / this.UnitsPerEm;
-        }
+            //2. return sizeInPixels / UnitsPerEm
 
-        internal GDEF GDEFTable
-        {
-            get;
-            set;
-        }
-        public GSUB GSUBTable
-        {
-            get;
-            set;
-        }
-        public GPOS GPOSTable
-        {
-            get;
-            set;
-        }
-        internal BASE BaseTable
-        {
-            get;
-            set;
-        }
-
-        //-------------------------------------------------------
-
-        public void Lookup(char[] buffer, List<int> output)
-        {
-            //do shaping here?
-            //1. do look up and substitution 
-            int j = buffer.Length;
-            for (int i = 0; i < j; ++i)
+            if (resolution < 0)
             {
-                output.Add(LookupIndex(buffer[i]));
+                //use current DefaultDPI
+                resolution = (int)DefaultDpi;
             }
-            //tmp disable here
-            //check for glyph substitution
-            //this.GSUBTable.CheckSubstitution(output[1]);
+            return (targetPointSize * resolution / s_pointsPerInch) / this.UnitsPerEm;
         }
-        //-------------------------------------------------------
-        //experiment
-        internal void LoadOpenFontLayoutInfo(GDEF gdefTable, GSUB gsubTable, GPOS gposTable, BASE baseTable)
+
+
+        internal BASE BaseTable { get; set; }
+        internal GDEF GDEFTable { get; set; }
+
+        public COLR COLRTable { get; private set; }
+        public CPAL CPALTable { get; private set; }
+
+        internal bool HasColorAndPal { get; private set; }
+        internal void SetColorAndPalTable(COLR colr, CPAL cpal)
+        {
+            COLRTable = colr;
+            CPALTable = cpal;
+            HasColorAndPal = colr != null;
+        }
+
+        public GPOS GPOSTable { get; internal set; }
+        public GSUB GSUBTable { get; internal set; }
+
+        internal void LoadOpenFontLayoutInfo(GDEF gdefTable, GSUB gsubTable, GPOS gposTable, BASE baseTable, COLR colrTable, CPAL cpalTable)
         {
 
             //***
@@ -325,96 +390,176 @@ namespace Typography.OpenFont
             this.GSUBTable = gsubTable;
             this.GPOSTable = gposTable;
             this.BaseTable = baseTable;
+            this.COLRTable = colrTable;
+            this.CPALTable = cpalTable;
             //---------------------------
-            //1. fill glyph definition            
+            //fill glyph definition            
             if (gdefTable != null)
             {
-                gdefTable.FillGlyphData(this.Glyphs);
+                gdefTable.FillGlyphData(_glyphs);
             }
         }
-    }
 
+        internal PostTable PostTable { get; set; }
+        internal bool _evalCffGlyphBounds;
+        public bool IsCffFont => _hasCffData;
 
-    //------------------------------------------------------------------------------------------------------
-    public class GlyphPos
-    {
-        public readonly ushort glyphIndex;
-        public readonly ushort advWidth;
-        public short xoffset;
-        public short yoffset;
-        public GlyphClassKind _classKind;
-        public GlyphPos(ushort glyphIndex, GlyphClassKind classKind, ushort advWidth)
+        //Math Table
+
+        MathGlyphs.MathGlyphInfo[] _mathGlyphInfos;
+        internal MathTable _mathTable;
+        //
+        public MathGlyphs.MathConstants MathConsts => _mathTable?._mathConstTable;
+        internal void LoadMathGlyphInfos(MathGlyphs.MathGlyphInfo[] mathGlyphInfos)
         {
-            this.glyphIndex = glyphIndex;
-            this.advWidth = advWidth;
-            this._classKind = classKind;
+            _mathGlyphInfos = mathGlyphInfos;
+            if (mathGlyphInfos != null)
+            {
+                //fill to original glyph?
+                for (int glyphIndex = 0; glyphIndex < _glyphs.Length; ++glyphIndex)
+                {
+                    _glyphs[glyphIndex].MathGlyphInfo = mathGlyphInfos[glyphIndex];
+                }
+            }
+        }
+        public MathGlyphs.MathGlyphInfo GetMathGlyphInfo(ushort glyphIndex) => _mathGlyphInfos[glyphIndex];
+
+        //-------------------------
+        //svg and bitmap font
+        SvgTable _svgTable;
+
+        internal bool HasSvgTable { get; private set; }
+        internal void SetSvgTable(SvgTable svgTable)
+        {
+            HasSvgTable = (_svgTable = svgTable) != null;
+        }
+        public void ReadSvgContent(ushort glyphIndex, System.Text.StringBuilder output) => _svgTable?.ReadSvgContent(glyphIndex, output);
+
+
+        internal BitmapFontGlyphSource _bitmapFontGlyphSource;
+        public bool IsBitmapFont => _bitmapFontGlyphSource != null;
+        public void ReadBitmapContent(Glyph glyph, System.IO.Stream output)
+        {
+            _bitmapFontGlyphSource.CopyBitmapContent(glyph, output);
+        }
+
+        /// <summary>
+        /// undate lang info
+        /// </summary>
+        /// <param name="metaTable"></param>
+        internal void UpdateLangs(Meta metaTable) => Languages.Update(OS2Table, metaTable, CmapTable, this.GSUBTable, this.GPOSTable);
+
+
+
+        internal ushort _whitespaceWidth; //common used value
+
+        internal void UpdateFrequentlyUsedValues()
+        {
+            //whitespace
+            ushort whitespace_glyphIndex = this.GetGlyphIndex(' ');
+            if (whitespace_glyphIndex > 0)
+            {
+                _whitespaceWidth = this.GetAdvanceWidthFromGlyphIndex(whitespace_glyphIndex);
+            }
         }
 
 #if DEBUG
-        public override string ToString()
-        {
-            return glyphIndex.ToString() + "(" + xoffset + "," + yoffset + ")";
-        }
+        public override string ToString() => Name;
 #endif
+
     }
 
-    namespace Extensions
+    public interface IGlyphPositions
     {
+        int Count { get; }
 
-        public static class TypefaceExtensions
-        {
-            public static bool DoseSupportUnicode(
-                this Typeface typeface,
-                UnicodeLangBits unicodeLangBits)
-            {
-                if (typeface.OS2Table == null)
-                {
-                    return false;
-                }
-                //-----------------------------
-                long bits = (long)unicodeLangBits;
-                int bitpos = (int)(bits >> 32);
+        GlyphClassKind GetGlyphClassKind(int index);
+        void AppendGlyphOffset(int index, short appendOffsetX, short appendOffsetY);
+        void AppendGlyphAdvance(int index, short appendAdvX, short appendAdvY);
 
-                if (bitpos == 0)
-                {
-                    return true; //default
-                }
-                else if (bitpos < 32)
-                {
-                    //use range 1
-                    return (typeface.OS2Table.ulUnicodeRange1 & (1 << bitpos)) != 0;
-                }
-                else if (bitpos < 64)
-                {
-                    return (typeface.OS2Table.ulUnicodeRange2 & (1 << (bitpos - 32))) != 0;
-                }
-                else if (bitpos < 96)
-                {
-                    return (typeface.OS2Table.ulUnicodeRange3 & (1 << (bitpos - 64))) != 0;
-                }
-                else if (bitpos < 128)
-                {
-                    return (typeface.OS2Table.ulUnicodeRange4 & (1 << (bitpos - 96))) != 0;
-                }
-                else
-                {
-                    throw new System.NotSupportedException();
-                }
-            }
-        }
-        public static class UnicodeLangBitsExtension
-        {
-            public static UnicodeRangeInfo ToUnicodeRangeInfo(this UnicodeLangBits unicodeLangBits)
-            {
-                long bits = (long)unicodeLangBits;
-                int bitpos = (int)(bits >> 32);
-                int lower32 = (int)(bits & 0xFFFFFFFF);
-                return new UnicodeRangeInfo(bitpos,
-                    lower32 >> 16,
-                    lower32 & 0xFFFF);
-            }
-        }
-
-
+        ushort GetGlyph(int index, out ushort advW);
+        ushort GetGlyph(int index, out ushort inputOffset, out short offsetX, out short offsetY, out short advW);
+        //
+        void GetOffset(int index, out short offsetX, out short offsetY);
     }
+
+
+    public static class StringUtils
+    {
+        public static void FillWithCodepoints(List<int> codepoints, char[] str, int startAt = 0, int len = -1)
+        {
+
+            if (len == -1) len = str.Length;
+            // this is important!
+            // -----------------------
+            //  from @samhocevar's PR: (https://github.com/LayoutFarm/Typography/pull/56/commits/b71c7cf863531ebf5caa478354d3249bde40b96e)
+            // In many places, "char" is not a valid type to handle characters, because it
+            // only supports 16 bits.In order to handle the full range of Unicode characters,
+            // we need to use "int".
+            // This allows characters such as 🙌 or 𐐷 or to be treated as single codepoints even
+            // though they are encoded as two "char"s in a C# string.
+            for (int i = 0; i < len; ++i)
+            {
+                char ch = str[startAt + i];
+                int codepoint = ch;
+                if (char.IsHighSurrogate(ch) && i + 1 < len)
+                {
+                    char nextCh = str[startAt + i + 1];
+                    if (char.IsLowSurrogate(nextCh))
+                    {
+                        ++i;
+                        codepoint = char.ConvertToUtf32(ch, nextCh);
+                    }
+                }
+                codepoints.Add(codepoint);
+            }
+        }
+        public static IEnumerable<int> GetCodepoints(char[] str, int startAt = 0, int len = -1)
+        {
+            if (len == -1) len = str.Length;
+            // this is important!
+            // -----------------------
+            //  from @samhocevar's PR: (https://github.com/LayoutFarm/Typography/pull/56/commits/b71c7cf863531ebf5caa478354d3249bde40b96e)
+            // In many places, "char" is not a valid type to handle characters, because it
+            // only supports 16 bits.In order to handle the full range of Unicode characters,
+            // we need to use "int".
+            // This allows characters such as 🙌 or 𐐷 or to be treated as single codepoints even
+            // though they are encoded as two "char"s in a C# string.
+            for (int i = 0; i < len; ++i)
+            {
+                char ch = str[startAt + i];
+                int codepoint = ch;
+                if (char.IsHighSurrogate(ch) && i + 1 < len)
+                {
+                    char nextCh = str[startAt + i + 1];
+                    if (char.IsLowSurrogate(nextCh))
+                    {
+                        ++i;
+                        codepoint = char.ConvertToUtf32(ch, nextCh);
+                    }
+                }
+                yield return codepoint;
+            }
+        }
+    }
+
+
+
+
+    public readonly struct GlyphNameMap
+    {
+        public readonly ushort glyphIndex;
+        public readonly string glyphName;
+        public GlyphNameMap(ushort glyphIndex, string glyphName)
+        {
+            this.glyphIndex = glyphIndex;
+            this.glyphName = glyphName;
+        }
+    }
+
+
 }
+
+
+
+

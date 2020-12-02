@@ -1,5 +1,5 @@
 ﻿using System;
-using ImGui.Common.Primitive;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace ImGui.OSAbstraction.Graphics
 {
@@ -13,6 +13,12 @@ namespace ImGui.OSAbstraction.Graphics
         /// </summary>
         /// <returns>succeeded?true:false</returns>
         void LoadImage(byte[] data);
+
+        /// <summary>
+        /// Load image data from ImageSharp pixels into the texture
+        /// </summary>
+        /// <param name="data"></param>
+        void LoadImage(Rgba32[] data, int width, int height);
 
         /// <summary>
         /// Load image data from a file into the texture.
@@ -50,5 +56,15 @@ namespace ImGui.OSAbstraction.Graphics
         /// e.g. The id of the OpenGL texture object.
         /// </returns>
         int GetNativeTextureId();
+
+        /// <summary>
+        /// Retrieve an graphics-API-specific object of the texture resource.
+        /// </summary>
+        /// <returns>
+        /// e.g. The WebGLTexture object (JSObject).
+        /// </returns>
+        object GetNativeTextureObject();
+
+        bool Valid { get; }
     }
 }

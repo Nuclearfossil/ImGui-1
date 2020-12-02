@@ -1,114 +1,116 @@
 ﻿using System;
 using System.Collections.Generic;
-using ImGui.Common.Primitive;
 
 namespace ImGui
 {
     internal partial class GUISkin
     {
-        public static GUISkin Current { get; set;}
+        /// <summary>
+        /// Current Skin
+        /// </summary>
+        internal static GUISkin Current { get; set;}
 
         /// <summary>
         /// Default skin
         /// </summary>
-        public static GUISkin Instance { get; }
+        internal static GUISkin Default { get; }
+
+        internal static GUISkin Custom { get; set;}
 
         static GUISkin()
         {
-            Instance = CreateDefaultSkin();
-            Current = Instance;
+            Default = CreateDefaultSkin();
+            Current = Default;
         }
 
         private static GUISkin CreateDefaultSkin()
         {
             GUISkin skin = new GUISkin();
 
-            //FIXME Maybe there is a better way to init default skin?
-
             // init default rule lists
-            skin.InitButtonStyles();
-            skin.InitSelectableStyles();
-            skin.InitListBoxStyles();
-            skin.InitTextBoxStyles();
+            StyleRuleSet button = new StyleRuleSet();
+            skin.InitButtonStyles(button);
+            skin.styles[GUIControlName.Button] = button;
+
+            StyleRuleSet label = new StyleRuleSet();
+            skin.InitLabelStyles(label);
+            skin.styles[GUIControlName.Label] = label;
+
+            StyleRuleSet box = new StyleRuleSet();
+            skin.InitBoxStyles(box);
+            skin.styles[GUIControlName.Box] = box;
+
+            skin.InitCollapsingHeaderStyles(button, out var collapsingHeader);
+            skin.styles[GUIControlName.CollapsingHeader] = collapsingHeader;
+
+            StyleRuleSet textBox = new StyleRuleSet();
+            skin.InitTextBoxStyles(textBox);
+            skin.styles[GUIControlName.TextBox] = textBox;
+
+            StyleRuleSet image = new StyleRuleSet();
+            skin.InitImageStyles(image);
+            skin.styles[GUIControlName.Image] = image;
+
+            StyleRuleSet toggle = new StyleRuleSet();
+            skin.InitToggleStyles(toggle);
+            skin.styles[GUIControlName.Toggle] = toggle;
+
+            StyleRuleSet selectable = new StyleRuleSet();
+            skin.InitSelectableStyles(selectable);
+            skin.styles[GUIControlName.Selectable] = selectable;
+
+            StyleRuleSet separator = new StyleRuleSet();
+            skin.InitSeparatorStyle(separator);
+            skin.styles[GUIControlName.Separator] = separator;
+
+            StyleRuleSet progressBar = new StyleRuleSet();
+            skin.InitProgressBarStyles(progressBar);
+            skin.styles[GUIControlName.ProgressBar] = progressBar;
+
+            StyleRuleSet slider = new StyleRuleSet();
+            skin.InitSliderStyles(slider);
+            skin.styles[GUIControlName.Slider] = slider;
+
+            StyleRuleSet listbox = new StyleRuleSet();
+            skin.InitListBoxStyles(listbox);
+            skin.styles[GUIControlName.ListBox] = listbox;
+
+            skin.InitTreeNodeStyles(button, out var treeNode);
+            skin.styles[GUIControlName.TreeNode] = treeNode;
+
+            StyleRuleSet colorField = new StyleRuleSet();
+            skin.InitColorFieldStyles(colorField);
+            skin.styles[GUIControlName.ColorField] = colorField;
+
+            var comboBox = new StyleRuleSet();
+            skin.InitComboBoxStyles(comboBox);
+            skin.styles[GUIControlName.ComboBox] = comboBox;
 
             return skin;
         }
 
-        public IReadOnlyList<StyleModifier> GetStyleModifiers(GUIControlName control)
+        private readonly Dictionary<GUIControlName, StyleRuleSet> styles;
+
+        private GUISkin()
         {
-            return this.styles[control];
+            styles = new Dictionary<GUIControlName, StyleRuleSet>();
         }
 
-        private readonly Dictionary<GUIControlName, IReadOnlyList<StyleModifier>> styles;
-
-        public GUIStyle InternalStyle;
-
-        public GUISkin()
+        public GUISkin(Dictionary<GUIControlName, StyleRuleSet> styles)
         {
-            styles = new Dictionary<GUIControlName, IReadOnlyList<StyleModifier>>();
+            this.styles = new Dictionary<GUIControlName, StyleRuleSet>(styles);
+        }
 
-            this.InternalStyle = new GUIStyle();
+        internal StyleRuleSet this[GUIControlName name]
+        {
+            get
             {
-                this.InternalStyle.Set<double>(GUIStyleName._FieldWidth, 200);
-                this.InternalStyle.Set<double>(GUIStyleName._ControlLabelSpacing, 5);
-                this.InternalStyle.Set<double>(GUIStyleName._LabelWidth, 80);
-                this.InternalStyle.Set<double>(GUIStyleName._LabelHeight, 70);
+                if (Custom != null && Custom.styles.TryGetValue(name, out var value))
+                {
+                    return value;
+                }
+                return this.styles[name];
             }
         }
-
-        public GUISkin(Dictionary<GUIControlName, IReadOnlyList<StyleModifier>> rules)
-        {
-            styles = rules;
-
-            this.InternalStyle = new GUIStyle();
-            {
-                this.InternalStyle.Set<double>(GUIStyleName._FieldWidth, 200);
-                this.InternalStyle.Set<double>(GUIStyleName._ControlLabelSpacing, 5);
-                this.InternalStyle.Set<double>(GUIStyleName._LabelWidth, 80);
-                this.InternalStyle.Set<double>(GUIStyleName._LabelHeight, 70);
-            }
-        }
-
-        #region short-cuts
-
-        /*
-         * # Field and label design
-         * 
-         * single-line:
-         * +-----------+         +---------+
-         * | ~ field ~ | spacing |  label  |
-         * +-----------+         +---------+
-         * 
-         * multiple-line:
-         * +-----------+         +---------+
-         * | ~ field ~ | spacing |  label  |
-         * |           |         +---------+
-         * |           |
-         * |           |
-         * |           |
-         * +-----------+
-         * 
-         * Field is horizontally stretched. Spacing and label is fix-sized.
-         */
-
-        public double FieldWidth
-        {
-            get => InternalStyle.Get<double>(GUIStyleName._FieldWidth);
-            set => InternalStyle.Set<double>(GUIStyleName._FieldWidth, value);
-        }
-
-        public double FieldSpacing
-        {
-            get => InternalStyle.Get<double>(GUIStyleName._ControlLabelSpacing);
-            set => InternalStyle.Set<double>(GUIStyleName._ControlLabelSpacing, value);
-        }
-
-        public double LabelWidth
-        {
-            get => InternalStyle.Get<double>(GUIStyleName._LabelWidth);
-            set => InternalStyle.Set<double>(GUIStyleName._LabelWidth, value);
-        }
-
-        #endregion
     }
 }

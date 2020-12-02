@@ -1,184 +1,138 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using ImGui.Input;
 
-namespace ImGui.Layout
+namespace ImGui.Rendering
 {
-    [DebuggerDisplay("Group {StrId}:{Id}, Count={Entries.Count}")]
-    [DebuggerTypeProxy(typeof(LayoutGroupDebuggerView))]
-    internal class LayoutGroup : LayoutEntry
+    internal partial class Node
     {
-        public double CellSpacingHorizontal { get; set; } = 0;
-        public double CellSpacingVertical { get; set; } = 0;
-        public Alignment AlignmentHorizontal { get; set; } = Alignment.Start;
-        public Alignment AlignmentVertical { get; set; } = Alignment.Start;
+        public bool HorizontallyOverflow { get; set; }
+        public bool VerticallyOverflow { get; set; }
 
-        protected override void Reset()
+        public OverflowPolicy HorizontallyOverflowPolicy { get => this.RuleSet.OverflowX; }
+        public OverflowPolicy VerticallyOverflowPolicy { get => this.RuleSet.OverflowY; }
+
+        internal Node HScrollBarRoot;
+        internal Node VScrollBarRoot;
+        internal Vector ScrollOffset;
+        
+        const string HScrollBarName = "_HScrollBar";
+        const string VScrollBarName = "_VScrollBar";
+
+        public void CheckRuleSetForLayout_Group(IStyleRuleSet child)
         {
-            base.Reset();
-            this.CellSpacingHorizontal = 0;
-            this.CellSpacingVertical = 0;
-            this.AlignmentHorizontal = Alignment.Start;
-            this.AlignmentVertical = Alignment.Start;
-        }
-
-        public void Init(int id, bool isVertical, LayoutOptions? options)
-        {
-            this.Reset();
-
-            this.Id = id;
-            //NOTE content size is always a calculated value
-
-            this.IsVertical = isVertical;
-
-            this.ApplyStyle();
-            if(options.HasValue)
+            if (this.RuleSet.IsFixedWidth)
             {
-                this.ApplyOptions(options.Value);
-            }
-        }
-
-        protected override void ApplyStyle()
-        {
-            base.ApplyStyle();
-
-            var style = GUIStyle.Basic;
-
-            var csh = style.CellSpacingHorizontal;
-            if(csh >= 0)
-            {
-                this.CellSpacingHorizontal = csh;
-            }
-            var csv = style.CellSpacingVertical;
-            if (csv >= 0)
-            {
-                this.CellSpacingVertical = csv;
-            }
-            this.AlignmentHorizontal = style.AlignmentHorizontal;
-            this.AlignmentVertical = style.AlignmentVertical;
-        }
-
-        public bool IsVertical { get; private set; }
-
-        public List<LayoutEntry> Entries { get; } = new List<LayoutEntry>();
-
-        public LayoutEntry GetEntry(int id)
-        {
-            foreach (var entry in this.Entries)
-            {
-                if (entry.Id == id)
+                Debug.Assert(!this.RuleSet.HorizontallyStretched);
+                if (this.IsVertical && child.RuleSet.HorizontalStretchFactor > 1)
                 {
-                    return entry;
+                    child.RuleSet.HorizontalStretchFactor = 1;
                 }
             }
-            return null;
-        }
-
-        /// <summary>
-        /// Append child entry to this group
-        /// </summary>
-        /// <param name="item"></param>
-        public void Add(LayoutEntry item)
-        {
-            if (this.IsFixedWidth)
+            else if (this.RuleSet.HorizontallyStretched)
             {
-                Debug.Assert(!this.HorizontallyStretched);
-                if (this.IsVertical && item.HorizontalStretchFactor > 1)
+                if (this.IsVertical && child.RuleSet.HorizontalStretchFactor > 1)
                 {
-                    item.HorizontalStretchFactor = 1;
-                }
-            }
-            else if (this.HorizontallyStretched)
-            {
-                if (this.IsVertical && item.HorizontalStretchFactor > 1)
-                {
-                    item.HorizontalStretchFactor = 1;
+                    child.RuleSet.HorizontalStretchFactor = 1;
                 }
             }
             else
             {
-                item.HorizontalStretchFactor = 0;
+                child.RuleSet.HorizontalStretchFactor = 0;
             }
 
-            if (this.IsFixedHeight)
+            if (this.RuleSet.IsFixedHeight)
             {
-                Debug.Assert(!this.VerticallyStretched);
-                if (!this.IsVertical && item.VerticalStretchFactor > 1)
+                Debug.Assert(!this.RuleSet.VerticallyStretched);
+                if (!this.IsVertical && child.RuleSet.VerticalStretchFactor > 1)
                 {
-                    item.VerticalStretchFactor = 1;
+                    child.RuleSet.VerticalStretchFactor = 1;
                 }
             }
-            else if (this.VerticallyStretched)
+            else if (this.RuleSet.VerticallyStretched)
             {
-                if (!this.IsVertical && item.VerticalStretchFactor > 1)
+                if (!this.IsVertical && child.RuleSet.VerticalStretchFactor > 1)
                 {
-                    item.VerticalStretchFactor = 1;
+                    child.RuleSet.VerticalStretchFactor = 1;
                 }
             }
             else
             {
-                item.VerticalStretchFactor = 0;
+                child.RuleSet.VerticalStretchFactor = 0;
             }
-
-            this.Entries.Add(item);
         }
 
-        public override void CalcWidth(double unitPartWidth = -1)
+        public void CalcWidth_Group(double unitPartWidth = -1)
         {
-            if (this.HorizontallyStretched)//stretched width
+            if (this.RuleSet.HorizontallyStretched)//stretched width
             {
                 // calculate the width
-                this.Rect.Width = unitPartWidth * this.HorizontalStretchFactor;
-                if (this.Rect.Width - this.PaddingHorizontal - this.BorderHorizontal < 1)
+                this.Width = unitPartWidth * this.RuleSet.HorizontalStretchFactor;
+                if (this.Width - this.PaddingHorizontal - this.BorderHorizontal < 1)
                 {
-                    Log.Warning(string.Format("The width of Group<{0}> is too small to hold any children.", this.Id));
-                    return;
+                    throw new LayoutException(
+                        $"The width of Group<{this}> is too small to hold any children.");
                 }
-                this.ContentWidth = this.Rect.Width - this.PaddingHorizontal - this.BorderHorizontal;
+                this.ContentWidth = this.Width - this.PaddingHorizontal - this.BorderHorizontal;
 
                 // calculate the width of children
-                CalcChildrenWidth();
+                this.CalcChildrenWidth();
             }
-            else if (this.IsFixedWidth)//fixed width
+            else if (this.RuleSet.IsFixedWidth)//fixed width
             {
                 // calculate the width
-                this.Rect.Width = this.MinWidth;
+                this.Width = this.RuleSet.MinWidth;
 
-                if (this.Rect.Width - this.PaddingHorizontal - this.BorderHorizontal < 1)
+                if (this.Width - this.PaddingHorizontal - this.BorderHorizontal < 1)
                 {
-                    Log.Warning(string.Format("The width of Group<{0}> is too small to hold any children.", this.Id));
-                    return;
+                    throw new LayoutException($"The width of Group<{this}> is too small to hold any children.");
                 }
-                this.ContentWidth = this.Rect.Width - this.PaddingHorizontal - this.BorderHorizontal;
+                this.ContentWidth = this.Width - this.PaddingHorizontal - this.BorderHorizontal;
 
                 // calculate the width of children
-                CalcChildrenWidth();
+                this.CalcChildrenWidth();
             }
-            else // default width
+            else // default width: group width is determined by width of all children
             {
                 if (this.IsVertical) //vertical group
                 {
                     var temp = 0d;
                     // get the max width of children
-                    foreach (var entry in this.Entries)
+                    foreach (var visual in this.Children)
                     {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+
+                        Debug.Assert(visual is Node);//All children should be Node.
+
+                        Node entry = (Node) visual;
                         entry.CalcWidth();
-                        temp = Math.Max(temp, entry.Rect.Width);
+                        temp = Math.Max(temp, entry.Width);
                     }
                     this.ContentWidth = temp;
                 }
                 else
                 {
                     var temp = 0d;
-                    foreach (var entry in this.Entries)
+                    foreach (var visual in this.Children)
                     {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+
+                        Debug.Assert(visual is Node);//All children should be Node.
+
+                        Node entry = (Node) visual;
                         entry.CalcWidth();
-                        temp += entry.Rect.Width + this.CellSpacingHorizontal;
+                        temp += entry.Width + this.RuleSet.CellSpacingHorizontal;
                     }
-                    temp -= this.CellSpacingHorizontal;
+                    temp -= this.RuleSet.CellSpacingHorizontal;
                     this.ContentWidth = temp < 0 ? 0 : temp;
                 }
-                this.Rect.Width = this.ContentWidth + this.PaddingHorizontal + this.BorderHorizontal;
+                this.Width = this.ContentWidth + this.PaddingHorizontal + this.BorderHorizontal;
             }
         }
 
@@ -186,9 +140,19 @@ namespace ImGui.Layout
         {
             if (this.IsVertical) //vertical group
             {
-                foreach (var entry in this.Entries)
+                double maxChildWidth = 0;
+                foreach (var visual in this.Children)
                 {
-                    if (entry.HorizontallyStretched)
+                    if (!visual.ActiveSelf)
+                    {
+                        continue;
+                    }
+
+                    Debug.Assert(visual is Node);//All children should be Node.
+
+                    Node entry = (Node) visual;
+
+                    if (entry.RuleSet.HorizontallyStretched)
                     {
                         entry.CalcWidth(this.ContentWidth);
                         //the unitPartWidth
@@ -199,6 +163,16 @@ namespace ImGui.Layout
                     {
                         entry.CalcWidth();
                     }
+                    maxChildWidth = Math.Max(maxChildWidth, entry.Width);
+                }
+
+                if (this.ContentWidth < maxChildWidth)
+                {
+                    this.HorizontallyOverflow = true;
+                }
+                else
+                {
+                    this.HorizontallyOverflow = false;
                 }
             }
             else //horizontal group
@@ -206,67 +180,90 @@ namespace ImGui.Layout
                 // calculate the unitPartWidth for stretched children
                 // calculate the width of fixed-size children
 
-                var childCount = this.Entries.Count;
-                var cellSpacingWidth = this.CellSpacingHorizontal * (childCount - 1);
-                if(cellSpacingWidth >= this.ContentWidth)
+                var childCount = this.ChildCount;
+
+                //only count active children
+                foreach (var visual in this.Children)
                 {
-                    Log.Warning(string.Format("Group<{0}> doesn't have enough width for horizontal-cell-spacing<{1}> with {2} children.",
-                        this.Id, this.CellSpacingHorizontal, childCount));
+                    if (!visual.ActiveSelf)
+                    {
+                        childCount--;
+                    }
+
+                    Debug.Assert(visual is Node);//All children should be Node.
+                }
+
+                //no child, do nothing
+                if (childCount <= 0)
+                {
                     return;
                 }
 
-                var widthWithoutCellSpacing = this.ContentWidth - cellSpacingWidth;
-
-                double minWidthOfEntries = 0;
-                double minStretchedWidth = 0;
-                foreach (var entry in this.Entries)
+                var cellSpacing = this.RuleSet.CellSpacingHorizontal;
+                if (this.ContentWidth < this.RuleSet.CellSpacingHorizontal)//the content box is too small to hold any child
                 {
-                    if (entry.HorizontallyStretched)
+                    return;
+                }
+
+                //get the total size of fixed/default-sized, namely known-sized, children
+                var knownSizedChildrenWidth = 0.0;
+                foreach (var visual in this.Children)
+                {
+                    if (!visual.ActiveSelf)
                     {
-                        var defaultWidth = entry.GetDefaultWidth();
-                        minWidthOfEntries += defaultWidth;
-                        minStretchedWidth += defaultWidth;
+                        continue;
                     }
-                    else if(entry.IsFixedWidth)
+                    Debug.Assert(visual is Node);//All children should be Node.
+                    Node entry = (Node) visual;
+                    if (entry.RuleSet.IsFixedWidth)
                     {
-                        minWidthOfEntries += entry.MinWidth;
+                        knownSizedChildrenWidth += entry.RuleSet.MinWidth;
+                        knownSizedChildrenWidth += cellSpacing;
                     }
-                    else
+                    else if (entry.RuleSet.IsDefaultWidth)
                     {
-                        minWidthOfEntries += entry.GetDefaultWidth();
+                        knownSizedChildrenWidth += entry.GetDefaultWidth();
+                        knownSizedChildrenWidth += cellSpacing;
                     }
                 }
 
-                if(minWidthOfEntries > widthWithoutCellSpacing)//overflow
+                var spaceLeftForStretchedChildren = this.ContentWidth - knownSizedChildrenWidth;
+                if (spaceLeftForStretchedChildren < 0)//overflow, stretched children will be reverted to default-sized
                 {
-                    var factor = 0;
-                    foreach (var entry in this.Entries)
+                    this.HorizontallyOverflow = true;
+                    foreach (var visual in this.Children)
                     {
-                        if (entry.HorizontallyStretched)
+                        if (!visual.ActiveSelf)
                         {
-                            factor += entry.HorizontalStretchFactor;
+                            continue;
                         }
-                    }
-                    var unit = minStretchedWidth / factor;
-                    // change all HorizontallyStretched entries to fixed width
-                    foreach (var entry in this.Entries)
-                    {
-                        if (entry.HorizontallyStretched)
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node)visual;
+                        if (entry.RuleSet.HorizontallyStretched)
                         {
-                            entry.MinWidth = entry.MaxWidth = unit * entry.HorizontalStretchFactor;
-                            entry.HorizontalStretchFactor = 0;
+                            //set to default-sized
+                            entry.RuleSet.HorizontalStretchFactor = 0;
+                            entry.RuleSet.MinWidth = 1;
+                            entry.RuleSet.MaxWidth = 9999;
                         }
                         entry.CalcWidth();
                     }
                 }
                 else
                 {
+                    this.HorizontallyOverflow = false;
                     var factor = 0;
-                    foreach (var entry in this.Entries)
+                    foreach (var visual in this.Children)
                     {
-                        if (entry.HorizontallyStretched)
+                        if (!visual.ActiveSelf)
                         {
-                            factor += entry.HorizontalStretchFactor;
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        if (entry.RuleSet.HorizontallyStretched)
+                        {
+                            factor += entry.RuleSet.HorizontalStretchFactor;
                         }
                         else
                         {
@@ -276,12 +273,17 @@ namespace ImGui.Layout
 
                     if (factor > 0)
                     {
-                        var stretchedWidth = widthWithoutCellSpacing - minWidthOfEntries + minStretchedWidth;
-                        var unit = stretchedWidth / factor;
+                        var unit = spaceLeftForStretchedChildren / factor;
                         // calculate the width of stretched children
-                        foreach (var entry in this.Entries)
+                        foreach (var visual in this.Children)
                         {
-                            if (entry.HorizontallyStretched)
+                            if (!visual.ActiveSelf)
+                            {
+                                continue;
+                            }
+                            Debug.Assert(visual is Node);//All children should be Node.
+                            Node entry = (Node) visual;
+                            if (entry.RuleSet.HorizontallyStretched)
                             {
                                 entry.CalcWidth(unit);
                             }
@@ -292,62 +294,72 @@ namespace ImGui.Layout
             }
         }
 
-        public override void CalcHeight(double unitPartHeight = -1)
+        public void CalcHeight_Group(double unitPartHeight = -1)
         {
-            if (this.VerticallyStretched)
+            if (this.RuleSet.VerticallyStretched)
             {
                 // calculate the height
-                this.Rect.Height = unitPartHeight * this.VerticalStretchFactor;
-                if (this.Rect.Height - this.PaddingVertical - this.BorderVertical < 1)
+                this.Height = unitPartHeight * this.RuleSet.VerticalStretchFactor;
+                if (this.Height - this.PaddingVertical - this.BorderVertical < 1)
                 {
-                    Log.Warning(string.Format("The height of Group<{0}> is too small to hold any children.", this.Id));
-                    return;
+                    throw new LayoutException($"The height of Group<{this}> is too small to hold any children.");
                 }
-                this.ContentHeight = this.Rect.Height - this.PaddingVertical - this.BorderVertical;
+                this.ContentHeight = this.Height - this.PaddingVertical - this.BorderVertical;
 
                 // calculate the height of children
-                CalcChildrenHeight();
+                this.CalcChildrenHeight();
             }
-            else if (this.IsFixedHeight)//fixed height
+            else if (this.RuleSet.IsFixedHeight)//fixed height
             {
                 // calculate the height
-                this.Rect.Height = this.MinHeight;
+                this.Height = this.RuleSet.MinHeight;
 
-                if (this.Rect.Height - this.PaddingVertical - this.BorderVertical < 1)
+                if (this.Height - this.PaddingVertical - this.BorderVertical < 1)
                 {
-                    Log.Warning(string.Format("The height of Group<{0}> is too small to hold any children.", this.Id));
-                    return;
+                    throw new LayoutException($"The height of Group<{this}> is too small to hold any children.");
                 }
-                this.ContentHeight = this.Rect.Height - this.PaddingVertical - this.BorderVertical;
+                this.ContentHeight = this.Height - this.PaddingVertical - this.BorderVertical;
 
                 // calculate the height of children
-                CalcChildrenHeight();
+                this.CalcChildrenHeight();
             }
-            else // default height
+            else // default height: group height is determined by height of all children
             {
                 if (this.IsVertical) // vertical group
                 {
                     var temp = 0d;
-                    foreach (var entry in this.Entries)
+                    foreach (var visual in this.Children)
                     {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
                         entry.CalcHeight();
-                        temp += entry.Rect.Height + this.CellSpacingVertical;
+                        temp += entry.Height + this.RuleSet.CellSpacingVertical;
                     }
-                    temp -= this.CellSpacingVertical;
+                    temp -= this.RuleSet.CellSpacingVertical;
                     this.ContentHeight = temp < 0 ? 0 : temp;
                 }
                 else // horizontal group
                 {
                     var temp = 0d;
                     // get the max height of children
-                    foreach (var entry in this.Entries)
+                    foreach (var visual in this.Children)
                     {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
                         entry.CalcHeight();
-                        temp = Math.Max(temp, entry.Rect.Height);
+                        temp = Math.Max(temp, entry.Height);
                     }
                     this.ContentHeight = temp;
                 }
-                this.Rect.Height = this.ContentHeight + this.PaddingVertical + this.BorderVertical;
+                this.Height = this.ContentHeight + this.PaddingVertical + this.BorderVertical;
             }
         }
 
@@ -358,67 +370,85 @@ namespace ImGui.Layout
                 // calculate the unitPartHeight for stretched children
                 // calculate the height of fixed-size children
 
-                var childCount = this.Entries.Count;
-                var cellSpacingHeight = (childCount - 1) * this.CellSpacingVertical;
-                if(cellSpacingHeight >= this.ContentWidth)
+                var childCount = this.ChildCount;
+
+                //only count active children
+                foreach (var visual in this.Children)
                 {
-                    Log.Warning(string.Format("Group<{0}> doesn't have enough height for vertical-cell-spacing<{1}> with {2} children.",
-                        this.Id, this.CellSpacingVertical, childCount));
+                    if (!visual.ActiveSelf)
+                    {
+                        childCount--;
+                    }
+                    Debug.Assert(visual is Node);//All children should be Node.
+                }
+
+                //no child, do nothing
+                if (childCount <= 0)
+                {
                     return;
                 }
 
-                var heightWithoutCellSpacing = this.ContentHeight - cellSpacingHeight;
-
-                double minHeightOfEntries = 0;
-                double minStretchedHeight = 0;
-                foreach (var entry in this.Entries)
+                var cellSpacing = this.RuleSet.CellSpacingVertical;
+                if (this.ContentHeight < this.RuleSet.CellSpacingVertical)//the content box is too small to hold any child
                 {
-                    if (entry.VerticallyStretched)
+                    return;
+                }
+
+                //get the total size of fixed/default-sized, namely known-sized, children
+                var knownSizedChildrenHeight = 0.0;
+                foreach (var visual in this.Children)
+                {
+                    if (!visual.ActiveSelf)
                     {
-                        var defaultHeight = entry.GetDefaultHeight();
-                        minHeightOfEntries += defaultHeight;
-                        minStretchedHeight += defaultHeight;
+                        continue;
                     }
-                    else if (entry.IsFixedHeight)
+                    Debug.Assert(visual is Node);//All children should be Node.
+                    Node entry = (Node) visual;
+                    if (entry.RuleSet.IsFixedHeight)
                     {
-                        minHeightOfEntries += entry.MinHeight;
+                        knownSizedChildrenHeight += entry.RuleSet.MinHeight;
+                        knownSizedChildrenHeight += cellSpacing;
                     }
-                    else
+                    else if (entry.RuleSet.IsDefaultHeight)
                     {
-                        minHeightOfEntries += entry.GetDefaultHeight();
+                        knownSizedChildrenHeight += entry.GetDefaultHeight();
+                        knownSizedChildrenHeight += cellSpacing;
                     }
                 }
 
-                if (minHeightOfEntries > heightWithoutCellSpacing)//overflow
+                var spaceLeftForStretchedChildren = this.ContentHeight - knownSizedChildrenHeight;
+                if (spaceLeftForStretchedChildren < 0)//overflow, stretched children will be hidden
                 {
-                    var factor = 0;
-                    foreach (var entry in this.Entries)
+                    this.VerticallyOverflow = true;
+                    foreach (var visual in this.Children)
                     {
-                        if (entry.VerticallyStretched)
+                        if (!visual.ActiveSelf)
                         {
-                            factor += entry.VerticalStretchFactor;
+                            continue;
                         }
-                    }
-                    var unit = minStretchedHeight / factor;
-                    // change all VerticallyStretched entries to fixed height
-                    foreach (var entry in this.Entries)
-                    {
-                        if (entry.VerticallyStretched)
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        if (entry.RuleSet.IsFixedHeight || entry.RuleSet.IsDefaultHeight)
                         {
-                            entry.MinHeight = entry.MaxHeight = unit * entry.VerticalStretchFactor;
-                            entry.VerticalStretchFactor = 0;
+                            entry.CalcHeight();
                         }
-                        entry.CalcHeight();
                     }
                 }
                 else
                 {
+                    this.VerticallyOverflow = false;
                     var factor = 0;
-                    foreach (var entry in this.Entries)
+                    foreach (var visual in this.Children)
                     {
-                        if (entry.VerticallyStretched)
+                        if (!visual.ActiveSelf)
                         {
-                            factor += entry.VerticalStretchFactor;
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        if (entry.RuleSet.VerticallyStretched)
+                        {
+                            factor += entry.RuleSet.VerticalStretchFactor;
                         }
                         else
                         {
@@ -428,25 +458,36 @@ namespace ImGui.Layout
 
                     if (factor > 0)
                     {
-                        var stretchedHeight = heightWithoutCellSpacing - minHeightOfEntries + minStretchedHeight;
-                        var unit = stretchedHeight / factor;
+                        var unit = spaceLeftForStretchedChildren / factor;
                         // calculate the height of stretched children
-                        foreach (var entry in this.Entries)
+                        foreach (var visual in this.Children)
                         {
-                            if (entry.VerticallyStretched)
+                            if (!visual.ActiveSelf)
+                            {
+                                continue;
+                            }
+                            Debug.Assert(visual is Node);//All children should be Node.
+                            Node entry = (Node) visual;
+                            if (entry.RuleSet.VerticallyStretched)
                             {
                                 entry.CalcHeight(unit);
                             }
                         }
                     }
                 }
-
             }
             else // horizontal group
             {
-                foreach (var entry in this.Entries)
+                double maxChildHeight = 0;
+                foreach (var visual in this.Children)
                 {
-                    if (entry.VerticallyStretched)
+                    if (!visual.ActiveSelf)
+                    {
+                        continue;
+                    }
+                    Debug.Assert(visual is Node);//All children should be Node.
+                    Node entry = (Node) visual;
+                    if (entry.RuleSet.VerticallyStretched)
                     {
                         entry.CalcHeight(this.ContentHeight);
                         //the unitPartHeight
@@ -457,19 +498,39 @@ namespace ImGui.Layout
                     {
                         entry.CalcHeight();
                     }
+                    maxChildHeight = Math.Max(maxChildHeight, entry.Height);
+                }
+
+                if(this.ContentHeight < maxChildHeight)
+                {
+                    this.VerticallyOverflow = true;
+                }
+                else
+                {
+                    this.VerticallyOverflow = false;
                 }
             }
         }
 
-        public override void SetX(double x)
+        public void SetX_Group(double x)
         {
-            this.Rect.X = x;
+            SetX_Entry(x);
+            if (this.HorizontallyOverflow && HorizontallyOverflowPolicy == OverflowPolicy.Scroll)
+            {
+                x -= ScrollOffset.X;
+            }
             if (this.IsVertical)
             {
                 var childX = 0d;
-                foreach (var entry in this.Entries)
+                foreach (var visual in this.Children)
                 {
-                    switch (this.AlignmentHorizontal)
+                    if (!visual.ActiveSelf || visual.Width < 0.1)
+                    {
+                        continue;
+                    }
+                    Debug.Assert(visual is Node);//All children should be Node.
+                    Node entry = (Node) visual;
+                    switch (this.RuleSet.AlignmentHorizontal)
                     {
                         case Alignment.Start:
                             childX = x + this.BorderLeft + this.PaddingLeft;
@@ -477,138 +538,209 @@ namespace ImGui.Layout
                         case Alignment.Center:
                         case Alignment.SpaceAround:
                         case Alignment.SpaceBetween:
-                            childX = x + this.BorderLeft + this.PaddingLeft + (this.ContentWidth - entry.Rect.Width) / 2;
+                            childX = x + this.BorderLeft + this.PaddingLeft + (this.ContentWidth - entry.Width) / 2;
                             break;
                         case Alignment.End:
-                            childX = x + this.Rect.Width - this.BorderRight - this.PaddingRight - entry.Rect.Width;
+                            childX = x + this.Width - this.BorderRight - this.PaddingRight - entry.Width;
                             break;
                     }
+
                     entry.SetX(childX);
                 }
             }
             else
             {
-                double nextX;
-
-                var childWidthWithCellSpcaing = 0d;
-                var childWidthWithoutCellSpcaing = 0d;
-                foreach (var entry in this.Entries)
+                double nextX;//position x of first child
+                if (this.HorizontallyOverflow)//overflow happens so there is no room for to align children
                 {
-                    childWidthWithCellSpcaing += entry.Rect.Width + this.CellSpacingHorizontal;
-                    childWidthWithoutCellSpcaing += entry.Rect.Width;
+                    nextX = x + this.BorderLeft + this.PaddingLeft;
+
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf || visual.Width < 0.1)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        entry.SetX(nextX);
+                        nextX += entry.Width + this.RuleSet.CellSpacingHorizontal;
+                    }
                 }
-                childWidthWithCellSpcaing -= this.CellSpacingVertical;
-
-                switch (this.AlignmentHorizontal)
+                else
                 {
-                    case Alignment.Start:
-                        nextX = x + this.BorderLeft + this.PaddingLeft;
-                        break;
-                    case Alignment.Center:
-                        nextX = x + this.BorderLeft + this.PaddingLeft + (this.ContentWidth - childWidthWithCellSpcaing) / 2;
-                        break;
-                    case Alignment.End:
-                        nextX = x + this.Rect.Width - this.BorderRight - this.PaddingRight - childWidthWithCellSpcaing;
-                        break;
-                    case Alignment.SpaceAround:
-                        nextX = x + this.BorderLeft + this.PaddingLeft +
-                                (this.ContentWidth - childWidthWithoutCellSpcaing) / (this.Entries.Count + 1);
-                        break;
-                    case Alignment.SpaceBetween:
-                        nextX = x + this.BorderLeft + this.PaddingLeft;
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                    var childWidthWithCellSpcaing = 0d;
+                    var childWidthWithoutCellSpcaing = 0d;
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf || visual.Width < 0.1)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        childWidthWithCellSpcaing += entry.Width + this.RuleSet.CellSpacingHorizontal;
+                        childWidthWithoutCellSpcaing += entry.Width;
+                    }
+                    childWidthWithCellSpcaing -= this.RuleSet.CellSpacingVertical;
 
-                foreach (var entry in this.Entries)
-                {
-                    entry.SetX(nextX);
-                    switch (this.AlignmentHorizontal)
+                    switch (this.RuleSet.AlignmentHorizontal)
                     {
                         case Alignment.Start:
+                            nextX = x + this.BorderLeft + this.PaddingLeft;
+                            break;
                         case Alignment.Center:
+                            nextX = x + this.BorderLeft + this.PaddingLeft + (this.ContentWidth - childWidthWithCellSpcaing) / 2;
+                            break;
                         case Alignment.End:
-                            nextX += entry.Rect.Width + this.CellSpacingHorizontal;
+                            nextX = x + this.Width - this.BorderRight - this.PaddingRight - childWidthWithCellSpcaing;
                             break;
                         case Alignment.SpaceAround:
-                            nextX += entry.Rect.Width + (this.ContentWidth - childWidthWithoutCellSpcaing) / (this.Entries.Count + 1);
+                            nextX = x + this.BorderLeft + this.PaddingLeft +
+                                    (this.ContentWidth - childWidthWithoutCellSpcaing) / (this.ChildCount + 1);
                             break;
                         case Alignment.SpaceBetween:
-                            nextX += entry.Rect.Width + (this.ContentWidth - childWidthWithoutCellSpcaing) / (this.Entries.Count - 1);
+                            nextX = x + this.BorderLeft + this.PaddingLeft;
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();
+                    }
+
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf || visual.Width < 0.1)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        entry.SetX(nextX);
+                        switch (this.RuleSet.AlignmentHorizontal)
+                        {
+                            case Alignment.Start:
+                            case Alignment.Center:
+                            case Alignment.End:
+                                nextX += entry.Width + this.RuleSet.CellSpacingHorizontal;
+                                break;
+                            case Alignment.SpaceAround:
+                                nextX += entry.Width + (this.ContentWidth - childWidthWithoutCellSpcaing) / (this.ChildCount + 1);
+                                break;
+                            case Alignment.SpaceBetween:
+                                nextX += entry.Width + (this.ContentWidth - childWidthWithoutCellSpcaing) / (this.ChildCount - 1);
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
                     }
                 }
             }
         }
 
-        public override void SetY(double y)
+        public void SetY_Group(double y)
         {
-            this.Rect.Y = y;
+            SetY_Entry(y);
+            if (this.VerticallyOverflow && VerticallyOverflowPolicy == OverflowPolicy.Scroll)
+            {
+                y -= ScrollOffset.Y;
+            }
             if (this.IsVertical)
             {
-                double nextY;
-
-                var childHeightWithCellSpcaing = 0d;
-                var childHeightWithoutCellSpcaing = 0d;
-                foreach (var entry in this.Entries)
+                double nextY;//position y of first child
+                if (this.VerticallyOverflow)//overflow happens so there is no room for to align children
                 {
-                    childHeightWithCellSpcaing += entry.Rect.Height + this.CellSpacingVertical;
-                    childHeightWithoutCellSpcaing += entry.Rect.Height;
+                    nextY = y + this.BorderTop + this.PaddingTop;
+
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf || visual.Height < 0.1)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        entry.SetY(nextY);
+                        nextY += entry.Height + this.RuleSet.CellSpacingVertical;
+                    }
                 }
-                childHeightWithCellSpcaing -= this.CellSpacingVertical;
-
-                switch (this.AlignmentVertical)
+                else
                 {
-                    case Alignment.Start:
-                        nextY = y + this.BorderTop + this.PaddingTop;
-                        break;
-                    case Alignment.Center:
-                        nextY = y + this.BorderTop + this.PaddingTop + (this.ContentHeight - childHeightWithCellSpcaing) / 2;
-                        break;
-                    case Alignment.End:
-                        nextY = y + this.Rect.Height - this.BorderBottom - this.PaddingBottom - childHeightWithCellSpcaing;
-                        break;
-                    case Alignment.SpaceAround:
-                        nextY = y + this.BorderTop + this.PaddingTop +
-                                (this.ContentHeight - childHeightWithoutCellSpcaing) / (this.Entries.Count + 1);
-                        break;
-                    case Alignment.SpaceBetween:
-                        nextY = y + this.BorderTop + this.PaddingTop;
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                    var childHeightWithCellSpcaing = 0d;
+                    var childHeightWithoutCellSpcaing = 0d;
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf || visual.Height < 0.1)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        childHeightWithCellSpcaing += entry.Height + this.RuleSet.CellSpacingVertical;
+                        childHeightWithoutCellSpcaing += entry.Height;
+                    }
+                    childHeightWithCellSpcaing -= this.RuleSet.CellSpacingVertical;
 
-                foreach (var entry in this.Entries)
-                {
-                    entry.SetY(nextY);
-                    switch (this.AlignmentVertical)
+                    switch (this.RuleSet.AlignmentVertical)
                     {
                         case Alignment.Start:
+                            nextY = y + this.BorderTop + this.PaddingTop;
+                            break;
                         case Alignment.Center:
+                            nextY = y + this.BorderTop + this.PaddingTop + (this.ContentHeight - childHeightWithCellSpcaing) / 2;
+                            break;
                         case Alignment.End:
-                            nextY += entry.Rect.Height + this.CellSpacingVertical;
+                            nextY = y + this.Height - this.BorderBottom - this.PaddingBottom - childHeightWithCellSpcaing;
                             break;
                         case Alignment.SpaceAround:
-                            nextY += entry.Rect.Height + (this.ContentHeight - childHeightWithoutCellSpcaing) / (this.Entries.Count + 1);
+                            nextY = y + this.BorderTop + this.PaddingTop +
+                                    (this.ContentHeight - childHeightWithoutCellSpcaing) / (this.ChildCount + 1);
                             break;
                         case Alignment.SpaceBetween:
-                            nextY += entry.Rect.Height + (this.ContentHeight - childHeightWithoutCellSpcaing) / (this.Entries.Count - 1);
+                            nextY = y + this.BorderTop + this.PaddingTop;
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();
+                    }
+
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf || visual.Height < 0.1)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        Node entry = (Node) visual;
+                        entry.SetY(nextY);
+                        switch (this.RuleSet.AlignmentVertical)
+                        {
+                            case Alignment.Start:
+                            case Alignment.Center:
+                            case Alignment.End:
+                                nextY += entry.Height + this.RuleSet.CellSpacingVertical;
+                                break;
+                            case Alignment.SpaceAround:
+                                nextY += entry.Height + (this.ContentHeight - childHeightWithoutCellSpcaing) / (this.ChildCount + 1);
+                                break;
+                            case Alignment.SpaceBetween:
+                                nextY += entry.Height + (this.ContentHeight - childHeightWithoutCellSpcaing) / (this.ChildCount - 1);
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
                     }
                 }
             }
             else
             {
                 var childY = 0d;
-                foreach (var entry in this.Entries)
+                foreach (var visual in this.Children)
                 {
-                    switch (this.AlignmentVertical)
+                    if (!visual.ActiveSelf || visual.Height < 0.1)
+                    {
+                        continue;
+                    }
+                    Debug.Assert(visual is Node);//All children should be Node.
+                    Node entry = (Node) visual;
+                    switch (this.RuleSet.AlignmentVertical)
                     {
                         case Alignment.Start:
                             childY = y + this.BorderTop + this.PaddingTop;
@@ -616,30 +748,286 @@ namespace ImGui.Layout
                         case Alignment.Center:
                         case Alignment.SpaceAround:
                         case Alignment.SpaceBetween:
-                            childY = y + this.BorderTop + this.PaddingTop + (this.ContentHeight - entry.Rect.Height) / 2;
+                            childY = y + this.BorderTop + this.PaddingTop + (this.ContentHeight - entry.Height) / 2;
                             break;
                         case Alignment.End:
-                            childY += y + this.Rect.Height - this.BorderBottom - this.PaddingBottom - entry.Rect.Height;
+                            childY += y + this.Height - this.BorderBottom - this.PaddingBottom - entry.Height;
                             break;
                     }
+
                     entry.SetY(childY);
                 }
             }
         }
 
-        /// <summary>
-        /// Debugger view of <see cref="LayoutGroup"/>
-        /// </summary>
-        internal class LayoutGroupDebuggerView
+        internal void OnGUI()
         {
-            private LayoutGroup group;
-            public LayoutGroupDebuggerView(LayoutGroup entry)
+            if (!IsGroup)
             {
-                this.group = entry;
+                return;
             }
 
-            [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-            public List<LayoutEntry> Entries => group.Entries;
+            if (HorizontallyOverflow && HorizontallyOverflowPolicy == OverflowPolicy.Scroll)
+            {
+                if (HScrollBarRoot == null)
+                {
+                    HScrollBarRoot = new Node(
+                        //TMP HACK: later this ID should be generated by the IDService
+                        this.Id + 23 * HScrollBarName.GetHashCode(),
+                        this.Name + HScrollBarName);
+                }
+                HScrollBarRoot.ActiveSelf = true;
+                GUIContext g = Form.current.uiContext;
+                g.KeepAliveID(HScrollBarRoot.Id);
+
+                double occupiedChildrenWidth = 0;
+                if (this.IsVertical)
+                {
+                    double maxChildWidth = 0;
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        maxChildWidth = Math.Max(maxChildWidth, visual.Width);
+                    }
+                    occupiedChildrenWidth = maxChildWidth;
+                }
+                else
+                {
+                    var cellSpacing = this.RuleSet.CellSpacingHorizontal;
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        occupiedChildrenWidth += visual.Width + cellSpacing;
+                    }
+                    if (occupiedChildrenWidth != 0)
+                    {
+                        occupiedChildrenWidth -= cellSpacing;
+                    }
+                }
+
+                var scrollWidth = this.RuleSet.ScrollBarWidth;
+                var padding = this.RuleSet.Padding;
+                var border = this.RuleSet.Border;
+
+                Rect bgRect = new Rect(
+                    new Point(Rect.Left + padding.left + border.left, Rect.Bottom - padding.bottom - border.bottom - scrollWidth),
+                    new Point(Rect.Right - padding.right - border.right - scrollWidth, Rect.Bottom - padding.bottom - border.bottom));
+                double contentSize = occupiedChildrenWidth;
+                double viewSize = Rect.Width - this.RuleSet.PaddingHorizontal - this.RuleSet.BorderHorizontal;
+                double viewPosition = ScrollOffset.X;
+                bool hovered, held;
+                viewPosition = GUIBehavior.ScrollBehavior(bgRect, contentSize, viewSize, viewPosition,
+                    HScrollBarRoot.Id, true, out var gripRect, out hovered, out held);
+                ScrollOffset.X = viewPosition;
+
+                var state = GUI.Normal;
+                if (hovered)
+                {
+                    state = GUI.Hover;
+                }
+                if (held)
+                {
+                    state = GUI.Active;
+                }
+
+                using (var dc = HScrollBarRoot.RenderOpen())
+                {
+                    var scrollBgColor = this.RuleSet.ScrollBarBackgroundColor;
+                    dc.DrawRectangle(new Brush(scrollBgColor), null, bgRect);
+                    var scrollButtonColor = this.RuleSet.Get<Color>(StylePropertyName.ScrollBarButtonColor, state);
+                    dc.DrawRectangle(new Brush(scrollButtonColor), null, gripRect);
+#if DrawScrollbarBorders
+                    dc.DrawRectangle(null, new Pen(new Color(1, 0, 0, 0.5), 2), bgRect);
+                    dc.DrawRectangle(null, new Pen(new Color(0, 0, 1, 0.5), 2), gripRect);
+#endif
+                }
+            }
+            else
+            {
+                HScrollBarRoot = null;
+            }
+
+            if (VerticallyOverflow && VerticallyOverflowPolicy == OverflowPolicy.Scroll)
+            {
+                if (VScrollBarRoot == null)
+                {
+                    VScrollBarRoot = new Node(
+                        //TMP HACK: later this ID should be generated by the IDService
+                        this.Id + 23 * VScrollBarName.GetHashCode(),
+                        this.Name + VScrollBarName);
+                }
+                VScrollBarRoot.ActiveSelf = true;
+                GUIContext g = Form.current.uiContext;
+                g.KeepAliveID(VScrollBarRoot.Id);
+
+                double occupiedChildrenHeight = 0;
+                if (this.IsVertical)
+                {
+                    var cellSpacing = this.RuleSet.CellSpacingVertical;
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        occupiedChildrenHeight += visual.Height + cellSpacing;
+                    }
+                    if (occupiedChildrenHeight != 0)
+                    {
+                        occupiedChildrenHeight -= cellSpacing;
+                    }
+                }
+                else
+                {
+                    double maxChildHeight = 0;
+                    foreach (var visual in this.Children)
+                    {
+                        if (!visual.ActiveSelf)
+                        {
+                            continue;
+                        }
+                        Debug.Assert(visual is Node);//All children should be Node.
+                        maxChildHeight = Math.Max(maxChildHeight, visual.Height);
+                    }
+                    occupiedChildrenHeight = maxChildHeight;
+                }
+
+                var scrollWidth = this.RuleSet.ScrollBarWidth;
+                var padding = this.RuleSet.Padding;
+                var border = this.RuleSet.Border;
+
+                Rect bgRect = new Rect(
+                    new Point(Rect.Right - padding.right - border.right - scrollWidth, Rect.Top + padding.top + border.top),
+                    new Point(Rect.Right - padding.right - border.right, Rect.Bottom - padding.bottom - border.bottom - scrollWidth));
+                double contentSize = occupiedChildrenHeight;
+                double viewSize = Rect.Height - this.RuleSet.PaddingVertical - this.RuleSet.BorderVertical;
+                double viewPosition = ScrollOffset.Y;
+                bool hovered, held;
+                viewPosition = GUIBehavior.ScrollBehavior(bgRect, contentSize, viewSize, viewPosition,
+                    VScrollBarRoot.Id, false, out var gripRect, out hovered, out held);
+                ScrollOffset.Y = viewPosition;
+
+                var state = GUI.Normal;
+                if (hovered)
+                {
+                    state = GUI.Hover;
+                }
+                if (held)
+                {
+                    state = GUI.Active;
+                }
+
+                using (var dc = VScrollBarRoot.RenderOpen())
+                {
+                    var scrollBgColor = this.RuleSet.ScrollBarBackgroundColor;
+                    dc.DrawRectangle(new Brush(scrollBgColor), null, bgRect);
+                    var scrollButtonColor = this.RuleSet.Get<Color>(StylePropertyName.ScrollBarButtonColor, state);
+                    dc.DrawRectangle(new Brush(scrollButtonColor), null, gripRect);
+#if DrawScrollbarBorders
+                    dc.DrawRectangle(null, new Pen(new Color(1, 0, 0, 0.5), 2), bgRect);
+                    dc.DrawRectangle(null, new Pen(new Color(0, 0, 1, 0.5), 2), gripRect);
+#endif
+                }
+            }
+            else
+            {
+                VScrollBarRoot = null;
+            }
         }
+        
+    }
+
+    internal partial class GUIBehavior
+    {
+        public static double ScrollBehavior(
+            Rect bgRect,
+            double contentSize,
+            double viewSize,
+            double viewPosition,
+            int id, bool horizontal,
+            out Rect gripRect,
+            out bool hovered, out bool held)
+        {
+            GUIContext g = Form.current.uiContext;
+
+            //grip size
+            var trackSize = horizontal ? bgRect.Width : bgRect.Height;
+            var contentRatio = viewSize / contentSize;
+            var gripSize = trackSize * contentRatio;
+
+            const double minGripSize = 20.0;
+            if(gripSize < minGripSize)
+            {
+                gripSize = minGripSize;
+            }
+
+            if (gripSize > trackSize)
+            {
+                gripSize = trackSize;
+            }
+
+            //grip position
+            var viewScrollAreaSize = contentSize - viewSize;
+            var viewPositionRatio = viewPosition / viewScrollAreaSize;
+            var trackScrollAreaSize = trackSize - gripSize;
+            var gripPositionOnTrack = trackScrollAreaSize * viewPositionRatio;
+
+            hovered = false;
+            held = false;
+
+            hovered = g.IsMouseHoveringRect(bgRect);
+            g.KeepAliveID(id);
+            if (hovered)
+            {
+                g.SetHoverID(id);
+
+                if (Mouse.Instance.LeftButtonPressed) //start track
+                {
+                    g.SetActiveID(id);
+                }
+            }
+            if (g.ActiveId == id)
+            {
+                if (Mouse.Instance.LeftButtonState == KeyState.Down)
+                {
+                    var v = Mouse.Instance.MouseDelta;
+                    var mousePositionDelta = horizontal ? v.X : v.Y;
+                    var newGripPosition = gripPositionOnTrack + mousePositionDelta;
+                    newGripPosition = Math.Clamp(newGripPosition, 0, trackScrollAreaSize);
+                    var newGripPositonRatio = newGripPosition / trackScrollAreaSize;
+                    viewPosition = newGripPositonRatio * viewScrollAreaSize;
+                }
+                else //end track
+                {
+                    g.SetActiveID(0);
+                }
+            }
+
+            if (g.ActiveId == id)
+            {
+                held = true;
+            }
+
+            if (horizontal)
+            {
+                gripRect = new Rect(bgRect.X + gripPositionOnTrack, bgRect.Y, gripSize, bgRect.Height);
+            }
+            else
+            {
+                gripRect = new Rect(bgRect.X, bgRect.Y + gripPositionOnTrack, bgRect.Width, gripSize);
+            }
+
+            return viewPosition;
+        }
+
     }
 }

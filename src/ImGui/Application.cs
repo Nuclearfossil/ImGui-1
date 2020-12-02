@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using ImGui.Input;
 
 namespace ImGui
 {
@@ -25,44 +26,35 @@ namespace ImGui
     /// </remarks>
     public static class Application
     {
+        internal static Form MainForm { get; private set; }
         internal static List<Form> Forms = new List<Form>();
+        private static List<Func<Form>> addedFromList = new List<Func<Form>>();
+        private static List<Form> removedFromList = new List<Form>();
         internal static OSAbstraction.PlatformContext PlatformContext;
-        private static readonly Stopwatch _applicationWatch = new Stopwatch();
-
-        /// <summary>
-        /// The time in ms since the application started.
-        /// </summary>
-        internal static long Time
-        {
-            get
-            {
-                if(!_applicationWatch.IsRunning)
-                {
-                    throw new InvalidOperationException(
-                        "The application's time cannot be obtained because it isn't running. Call Application.Run to run it first.");
-                }
-                return _applicationWatch.ElapsedMilliseconds;
-            }
-        }
-
-        private static long _frameStartTime;
-        private static long _deltaTime;
-
-        /// <summary>
-        /// The time in ms it took to complete the last frame
-        /// </summary>
-        public static long DeltaTime => _deltaTime;
 
         internal static void InitSysDependencies()
         {
+            Time.Init();
+
             // load logger
             if (IsRunningInUnitTest)
             {
-                Logger = new DebugLogger();
+                try
+                {
+                    Logger = new EchoLogger();
+                    EchoLogger.Show();
+                    Log.Enabled = true;
+                }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    Debug.WriteLine("Failed to connect to EchoLogger. The program will continue without logging.");
+                    Log.Enabled = false;
+                }
             }
             else
             {
-                Logger = new DefaultLogger();
+                Logger = new ConsoleLogger();
+                Log.Enabled = true;
             }
             Log.Init(Logger);
 
@@ -70,15 +62,15 @@ namespace ImGui
             //     platform-dependent implementation
             if (CurrentOS.IsAndroid)
             {
-                PlatformContext = OSImplentation.Android.AndroidContext.MapFactory();
+                PlatformContext = OSImplementation.Android.AndroidContext.MapFactory();
             }
             else if(CurrentOS.IsWindows)
             {
-                PlatformContext = OSImplentation.Windows.WindowsContext.MapFactory();
+                PlatformContext = OSImplementation.Windows.WindowsContext.MapFactory();
             }
             else if(CurrentOS.IsLinux)
             {
-                PlatformContext = OSImplentation.Linux.LinuxContext.MapFactory();
+                PlatformContext = OSImplementation.Linux.LinuxContext.MapFactory();
             }
         }
 
@@ -98,11 +90,31 @@ namespace ImGui
         /// <param name="mainForm">A <see cref="Form"/> that represents the form to make visible.</param>
         public static void Run(Form mainForm)
         {
+            MainForm = mainForm;
             Init(mainForm);
 
             while (!mainForm.Closed)
             {
-                _frameStartTime = Time;
+                Time.OnFrameBegin();
+                Keyboard.Instance.OnFrameBegin();
+
+                if (addedFromList.Count > 0)
+                {
+                    foreach (var fromCreator in addedFromList)
+                    {
+                        var form = fromCreator();
+                        Forms.Add(form);
+                    }
+                    addedFromList.Clear();
+                }
+                if (removedFromList.Count > 0)
+                {
+                    foreach (var form in removedFromList)
+                    {
+                        Forms.Remove(form);
+                    }
+                    removedFromList.Clear();
+                }
 
                 foreach (Form childForm in Forms)
                 {
@@ -112,34 +124,35 @@ namespace ImGui
                 {
                     break;
                 }
-                _deltaTime = Time - _frameStartTime;
+
+                Keyboard.Instance.OnFrameEnd();
+                Time.OnFrameEnd();
             }
+
         }
 
         public static void Init(Form mainForm)
         {
-            //Check paramter
+            //Check parameter
             if (mainForm == null)
             {
                 throw new ArgumentNullException(nameof(mainForm));
             }
-
-            //Time
-            _applicationWatch.Start();
 
             Forms.Add(mainForm);
 
             //Show main form
             mainForm.Show();
 
-            _frameStartTime = Time;
         }
 
         public static void RunLoop(Form form)
         {
-            _frameStartTime = Time;
+            Time.OnFrameBegin();
+            Keyboard.Instance.OnFrameBegin();
             form.MainLoop(form.GUILoop);
-            _deltaTime = Time - _frameStartTime;
+            Keyboard.Instance.OnFrameEnd();
+            Time.OnFrameEnd();
         }
 
 
@@ -148,11 +161,43 @@ namespace ImGui
         /// </summary>
         public static void Quit()
         {
+            if (IsRunningInUnitTest)
+            {
+                if (Log.Enabled)
+                {
+                    EchoLogger.Close();
+                }
+            }
             RequestQuit = true;
         }
 
-        public static bool IsRunningInUnitTest { get; set; } = false;
+        /// <summary>
+        /// Helper property for the unit-test.
+        /// </summary>
+        internal static bool IsRunningInUnitTest { get; set; } = false;
+
+        internal static bool EnableMSAA { get; set; } = true;
+
+        internal static Rect InitialDebugWindowRect { get; set; } = new Rect(80, 80, 400, 250);
 
         internal static ILogger Logger;
+
+        public static void AddFrom(Func<Form> formCreator)
+        {
+            addedFromList.Add(formCreator);
+        }
+
+        public static void RemoveForm(Form form)
+        {
+            if (form == null)
+            {
+                throw new ArgumentNullException(nameof(form));
+            }
+            if (!Forms.Contains(form))
+            {
+                throw new InvalidOperationException("Form hasn't been added, cannot remove.");
+            }
+            removedFromList.Add(form);
+        }
     }
 }

@@ -1,12 +1,10 @@
-﻿using ImGui.Common.Primitive;
-using ImGui.Input;
+﻿using ImGui.Input;
+using System.Collections.Generic;
 
 namespace ImGui
 {
-    internal class GUIContext
+    internal partial class GUIContext
     {
-        public bool LogEnabled = false;
-
         public long Time;
         public long FrameCount = 0;
 
@@ -18,6 +16,8 @@ namespace ImGui
         public WindowManager WindowManager { get; } = new WindowManager();
 
         public InputTextState InputTextState = new InputTextState();
+
+        public Stack<Rect> ClipRectStack { get; } = new Stack<Rect>(new[] { Rect.Big });
 
         private int hoverId;
         private int activeId;
@@ -61,24 +61,22 @@ namespace ImGui
             set => this.activeIdIsJustActivated = value;
         }
 
-        public int HoverIdPreviousFrame
-        {
-            get => this.hoverIdPreviousFrame;
-            set => this.hoverIdPreviousFrame = value;
-        }
-
+        public int HoveredIdPreviousFrame { get; internal set; }
 
         public bool ActiveIdAllowOverlap { get; internal set; }
         public Vector ActiveIdClickOffset { get; internal set; }
         public bool HoverIdAllowOverlap { get; internal set; }
         public long DeltaTime { get; internal set; }
-        public int HoveredIdPreviousFrame { get; internal set; }
 
         public bool Initialized { get; internal set; }
 
         public long FrameCountEnded { get; internal set; } = -1;
         public long FrameCountRendered { get; internal set; } = -1;
         public int CaptureMouseNextFrame { get; internal set; }
+        
+        // Debug Tools
+        internal bool DebugItemPickerActive { get; set; } = false;
+        internal int DebugItemPickerBreakID { get; set; } = 0;
 
         public void SetActiveID(int id, Window window = null)
         {
@@ -112,7 +110,7 @@ namespace ImGui
             // Clip
             Rect rectClipped = rect;
             if (clip)
-                rectClipped.Intersect(window.ClipRect);
+                rectClipped.Intersect(window.WindowContainer.Rect);
 
             return rectClipped.Contains(Mouse.Instance.Position);
         }
@@ -126,15 +124,63 @@ namespace ImGui
         public bool IsHovered(Rect bb, int id, bool flattenChilds = false)
         {
             GUIContext g = this;
-            if (g.HoverId == 0 || g.HoverId == id || g.HoverIdAllowOverlap)
+            if (g.HoverId != 0 && g.HoverId != id && !g.HoverIdAllowOverlap)
+                return false;
+            Window window = g.WindowManager.CurrentWindow;
+            if (g.WindowManager.HoveredWindow != window &&
+                (!flattenChilds || g.WindowManager.HoveredRootWindow != window.RootWindow))
+                return false;
+            if (g.ActiveId != 0 && g.ActiveId != id && !g.ActiveIdAllowOverlap)
+                return false;
+            if (!IsMouseHoveringRect(bb.Min, bb.Max)) 
+                return false;
+            if (!this.WindowManager.IsWindowContentHoverable(g.WindowManager.HoveredRootWindow))
+                return false;
+
+            // [DEBUG] Item Picker tool!
+            // We perform the check here because SetHoveredID() is not frequently called (1~ time a frame), making
+            // the cost of this tool near-zero.
+            // TODO Consider how to get slightly better call-stack and support picking non-hovered
+            // items.
+            if (g.DebugItemPickerActive && g.HoveredIdPreviousFrame == id)
             {
-                Window window = g.WindowManager.CurrentWindow;
-                if (g.WindowManager.HoveredWindow == window || (flattenChilds && g.WindowManager.HoveredRootWindow == window.RootWindow))
-                    if ((g.ActiveId == 0 || g.ActiveId == id || g.ActiveIdAllowOverlap) && IsMouseHoveringRect(bb.Min, bb.Max))
-                        if (this.WindowManager.IsWindowContentHoverable(g.WindowManager.HoveredRootWindow))
-                            return true;
+                g.ForegroundDrawingContext.DrawRectangle(
+                    null, new Rendering.Pen(Color.Argb(255, 255, 255, 0), 1), bb);
             }
-            return false;
+            if (g.DebugItemPickerBreakID == id)
+            {
+                //System.Diagnostics.Debugger.Break();
+
+                System.Diagnostics.StackTrace stackTrace = new System.Diagnostics.StackTrace(2, true);
+                var frames = stackTrace.GetFrames();
+                if (frames != null)
+                {
+                    System.Diagnostics.StackFrame targetFrame = null;
+                    bool nextFrame = false;
+                    foreach (var frame in frames)
+                    {
+                        var methodInfo = frame.GetMethod();
+                        if (methodInfo.IsPublic && methodInfo.DeclaringType == typeof(GUILayout))
+                        {
+                            nextFrame = true;
+                            continue;
+                        }
+                        if(nextFrame)
+                        {
+                            targetFrame = frame;
+                            break;
+                        }
+                    }
+                    if (targetFrame != null)
+                    {
+                        string fileName = targetFrame.GetFileName();
+                        string methodName = targetFrame.GetMethod().Name;
+                        int lineNumber = targetFrame.GetFileLineNumber();
+                        System.Diagnostics.Debug.WriteLine($"{fileName}({lineNumber}): {methodName}");
+                    }
+                }
+            }
+            return true;
         }
 
         public bool IsMouseLeftButtonClicked(bool repeat)
@@ -146,15 +192,35 @@ namespace ImGui
             {
                 double delay = Keyboard.KeyRepeatDelay, rate = Keyboard.KeyRepeatRate;
                 if (
-                    ((t - delay)%rate) > rate * 0.5f
+                    ((t - delay) % rate) > rate * 0.5f
                     !=
-                    ((t - delay - g.DeltaTime)% rate) > rate * 0.5f
-                    )
+                    ((t - delay - g.DeltaTime) % rate) > rate * 0.5f
+                )
+                {
                     return true;
+                }
             }
 
             return false;
         }
 
+        internal string DevOnly_GetNodeName(int id)
+        {
+            foreach (var window in WindowManager.Windows)
+            {
+                var node = window.RenderTree.Root.GetNodeById(id);
+                if (node != null)
+                {
+                    return node.Name;
+                }
+            }
+
+            return "<empty>";
+        }
+
+        internal void DebugStartItemPicker()
+        {
+            DebugItemPickerActive = true;
+        }
     }
 }

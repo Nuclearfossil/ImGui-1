@@ -3,14 +3,12 @@ using System.Diagnostics;
 using System.IO;
 using CSharpGL;
 using System.Reflection;
-using ImGui.Common.Primitive;
+using ImGui.OSImplementation.Web;
 
 namespace ImGui
 {
     internal static class Utility
     {
-
-
         /// <summary>
         /// convert pt to dip
         /// </summary>
@@ -34,7 +32,7 @@ namespace ImGui
         /// <summary>
         /// (Not using, performance is bad.)
         /// </summary>
-        [Conditional("None")]
+        [Conditional("DEBUG")]
         public static void CheckGLError()
         {
             var error = GL.GetError();
@@ -72,7 +70,7 @@ namespace ImGui
 
             if (error != GL.GL_NO_ERROR)
             {
-                throw new Exception(string.Format("glError: 0x{0:X} ({1})", error, errorStr));
+                throw new Exception(String.Format("glError: 0x{0:X} ({1})", error, errorStr));
             }
         }
 
@@ -117,11 +115,53 @@ namespace ImGui
 
             if (error != GL.GL_NO_ERROR)
             {
-                throw new Exception(string.Format("glError: 0x{0:X} ({1})", error, errorStr));
+                throw new Exception(String.Format("glError: 0x{0:X} ({1})", error, errorStr));
             }
         }
 
-        public static System.IO.Stream ReadFile(string filePath)
+        [Conditional("None")]
+        public static void CheckWebGLError()
+        {
+            var error = WebGL.GetError();
+            string errorStr = "GL_NO_ERROR";
+            switch (error)
+            {
+                case WebGL.GL_NO_ERROR:
+                    errorStr = "GL_NO_ERROR";
+                    break;
+                case WebGL.GL_INVALID_ENUM:
+                    errorStr = "GL_INVALID_ENUM";
+                    break;
+                case WebGL.GL_INVALID_VALUE:
+                    errorStr = "GL_INVALID_VALUE";
+                    break;
+                case WebGL.GL_INVALID_OPERATION:
+                    errorStr = "GL_INVALID_OPERATION";
+                    break;
+                case WebGL.GL_STACK_OVERFLOW:
+                    errorStr = "GL_STACK_OVERFLOW";
+                    break;
+                case WebGL.GL_STACK_UNDERFLOW:
+                    errorStr = "GL_STACK_UNDERFLOW";
+                    break;
+                case WebGL.GL_OUT_OF_MEMORY:
+                    errorStr = "GL_OUT_OF_MEMORY";
+                    break;
+                case WebGL.GL_INVALID_FRAMEBUFFER_OPERATION:
+                    errorStr = "GL_INVALID_FRAMEBUFFER_OPERATION";
+                    break;
+                case WebGL.GL_CONTEXT_LOST:
+                    errorStr = "GL_CONTEXT_LOST";
+                    break;
+            }
+
+            if (error != GL.GL_NO_ERROR)
+            {
+                throw new Exception(String.Format("glError: 0x{0:X} ({1})", error, errorStr));
+            }
+        }
+
+        public static Stream ReadFile(string filePath)
         {
             Stream stream = null;
             if (CurrentOS.IsAndroid)
@@ -147,6 +187,20 @@ namespace ImGui
         static string GetFontDir()
         {
             return Path.GetDirectoryName(typeof(Application).GetTypeInfo().Assembly.Location) + Path.DirectorySeparatorChar + "assets/fonts" + Path.DirectorySeparatorChar;
+        }
+
+        /// <summary>
+        /// Remove extra ID start with "##" from the text.
+        /// </summary>
+        public static string FindRenderedText(string text)
+        {
+            var indexHash = text.IndexOf("##", StringComparison.Ordinal);
+            if (indexHash > 0)
+            {
+                text = text.Substring(0, indexHash);
+            }
+
+            return text;
         }
 
     }

@@ -6,7 +6,6 @@ using System.Reflection;
 
 namespace CSharpGL
 {
-    [Obfuscation(Exclude = false, Feature = "-rename")]
     public static partial class GL
     {
         private static bool allFunctionsLoaded = false;
@@ -43,6 +42,9 @@ namespace CSharpGL
             _glUseProgram = GetDelegateFor<glUseProgram>();
             _glGetUniformLocation = GetDelegateFor<glGetUniformLocation>();
             _glUniformMatrix4fv = GetDelegateFor<glUniformMatrix4fv>();
+            _glUniform2f = GetDelegateFor<glUniform2f>();
+            _glUniform4f = GetDelegateFor<glUniform4f>();
+            _glUniform1i = GetDelegateFor<glUniform1i>();
 
             _glGenVertexArrays = GetDelegateFor<glGenVertexArrays>();
             _glDeleteVertexArrays = GetDelegateFor<glDeleteVertexArrays>();
@@ -53,12 +55,19 @@ namespace CSharpGL
             _glDeleteBuffers = GetDelegateFor<glDeleteBuffers>();
             _glGenBuffers = GetDelegateFor<glGenBuffers>();
 
-            _glGenFramebuffersEXT = GetDelegateFor<glGenFramebuffersEXT>();
-            _glBindFramebufferEXT = GetDelegateFor<glBindFramebufferEXT>();
+            _glGenFramebuffers = GetDelegateFor<glGenFramebuffers>();
+            _glBindFramebuffer = GetDelegateFor<glBindFramebuffer>();
             _glFramebufferTexture = GetDelegateFor<glFramebufferTexture>();
-            _glFramebufferTexture2DEXT = GetDelegateFor<glFramebufferTexture2DEXT>();
+            _glFramebufferTexture2D = GetDelegateFor<glFramebufferTexture2D>();
             _glDrawBuffers = GetDelegateFor<glDrawBuffers>();
-            _glCheckFramebufferStatusEXT = GetDelegateFor<glCheckFramebufferStatusEXT>();
+            _glCheckFramebufferStatus = GetDelegateFor<glCheckFramebufferStatus>();
+            _glDeleteFramebuffers = GetDelegateFor<glDeleteFramebuffers>();
+
+            _glGenRenderbuffers = GetDelegateFor<glGenRenderbuffers>();
+            _glBindRenderbuffer = GetDelegateFor<glBindRenderbuffer>();
+            _glRenderbufferStorage = GetDelegateFor<glRenderbufferStorage>();
+            _glFramebufferRenderbuffer = GetDelegateFor<glFramebufferRenderbuffer>();
+            _glGetFramebufferAttachmentParameteriv = GetDelegateFor<glGetFramebufferAttachmentParameteriv>();
 
             _glTexImage2DMultisample = GetDelegateFor<glTexImage2DMultisample>();
 
@@ -92,7 +101,10 @@ namespace CSharpGL
         private static glGetProgramInfoLog _glGetProgramInfoLog;
         private static glGetAttribLocation _glGetAttribLocation;
         private static glGetUniformLocation _glGetUniformLocation;
-        private static glUniformMatrix4fv _glUniformMatrix4fv;
+        private static glUniformMatrix4fv _glUniformMatrix4fv; 
+        private static glUniform2f _glUniform2f;
+        private static glUniform4f _glUniform4f;
+        private static glUniform1i _glUniform1i;
 
         private static glGenVertexArrays _glGenVertexArrays;
         private static glDeleteVertexArrays _glDeleteVertexArrays;
@@ -103,13 +115,20 @@ namespace CSharpGL
         private static glDeleteBuffers _glDeleteBuffers;
         private static glGenBuffers _glGenBuffers;
 
-        private static glGenFramebuffersEXT _glGenFramebuffersEXT;
-        private static glBindFramebufferEXT _glBindFramebufferEXT;
+        private static glGenFramebuffers _glGenFramebuffers;
+        private static glBindFramebuffer _glBindFramebuffer;
         private static glFramebufferTexture _glFramebufferTexture;
         private static glDrawBuffers _glDrawBuffers;
-        private static glCheckFramebufferStatusEXT _glCheckFramebufferStatusEXT;
+        private static glCheckFramebufferStatus _glCheckFramebufferStatus;
+        private static glDeleteFramebuffers _glDeleteFramebuffers;
 
-        private static glFramebufferTexture2DEXT _glFramebufferTexture2DEXT;
+        private static glGenRenderbuffers _glGenRenderbuffers;
+        private static glBindRenderbuffer _glBindRenderbuffer;
+        private static glRenderbufferStorage _glRenderbufferStorage;
+
+        private static glFramebufferTexture2D _glFramebufferTexture2D;
+        private static glFramebufferRenderbuffer _glFramebufferRenderbuffer;
+        private static glGetFramebufferAttachmentParameteriv _glGetFramebufferAttachmentParameteriv;
         private static glTexImage2DMultisample _glTexImage2DMultisample;
 
         #region OpenGL 1.2
@@ -1368,7 +1387,7 @@ namespace CSharpGL
         }
         public static void Uniform2(int location, float v0, float v1)
         {
-            GetDelegateFor<glUniform2f>()(location, v0, v1);
+            _glUniform2f(location, v0, v1);
         }
         public static void Uniform3(int location, float v0, float v1, float v2)
         {
@@ -1376,11 +1395,11 @@ namespace CSharpGL
         }
         public static void Uniform4(int location, float v0, float v1, float v2, float v3)
         {
-            GetDelegateFor<glUniform4f>()(location, v0, v1, v2, v3);
+            _glUniform4f(location, v0, v1, v2, v3);
         }
         public static void Uniform1(int location, int v0)
         {
-            GetDelegateFor<glUniform1i>()(location, v0);
+            _glUniform1i(location, v0);
         }
         public static void Uniform2(int location, int v0, int v1)
         {
@@ -4622,24 +4641,24 @@ namespace CSharpGL
             return GetDelegateFor<glIsRenderbufferEXT>()(renderbuffer);
         }
 
-        public static void BindRenderbufferEXT(uint target, uint renderbuffer)
+        public static void BindRenderbuffer(uint target, uint renderbuffer)
         {
-            GetDelegateFor<glBindRenderbufferEXT>()(target, renderbuffer);
+            _glBindRenderbuffer(target, renderbuffer);
         }
 
-        public static void DeleteRenderbuffersEXT(uint n, uint[] renderbuffers)
+        public static void DeleteRenderbuffers(uint n, uint[] renderbuffers)
         {
-            GetDelegateFor<glDeleteRenderbuffersEXT>()(n, renderbuffers);
+            GetDelegateFor<glDeleteRenderbuffers>()(n, renderbuffers);
         }
 
-        public static void GenRenderbuffersEXT(uint n, uint[] renderbuffers)
+        public static void GenRenderbuffers(uint n, uint[] renderbuffers)
         {
-            GetDelegateFor<glGenRenderbuffersEXT>()(n, renderbuffers);
+            _glGenRenderbuffers(n, renderbuffers);
         }
 
-        public static void RenderbufferStorageEXT(uint target, uint internalformat, int width, int height)
+        public static void RenderbufferStorage(uint target, uint internalformat, int width, int height)
         {
-            GetDelegateFor<glRenderbufferStorageEXT>()(target, internalformat, width, height);
+            _glRenderbufferStorage(target, internalformat, width, height);
         }
 
         public static void GetRenderbufferParameterivEXT(uint target, uint pname, int[] parameters)
@@ -4652,24 +4671,24 @@ namespace CSharpGL
             return GetDelegateFor<glIsFramebufferEXT>()(framebuffer);
         }
 
-        public static void BindFramebufferEXT(uint target, uint framebuffer)
+        public static void BindFramebuffer(uint target, uint framebuffer)
         {
-            _glBindFramebufferEXT(target, framebuffer);
+            _glBindFramebuffer(target, framebuffer);
         }
 
-        public static void DeleteFramebuffersEXT(uint n, uint[] framebuffers)
+        public static void DeleteFramebuffers(uint n, uint[] framebuffers)
         {
-            GetDelegateFor<glDeleteFramebuffersEXT>()(n, framebuffers);
+            _glDeleteFramebuffers(n, framebuffers);
         }
 
-        public static void GenFramebuffersEXT(uint n, uint[] framebuffers)
+        public static void GenFramebuffers(uint n, uint[] framebuffers)
         {
-            _glGenFramebuffersEXT(n, framebuffers);
+            _glGenFramebuffers(n, framebuffers);
         }
 
-        public static uint CheckFramebufferStatusEXT(uint target)
+        public static uint CheckFramebufferStatus(uint target)
         {
-            return _glCheckFramebufferStatusEXT(target);
+            return _glCheckFramebufferStatus(target);
         }
 
         public static void FramebufferTexture1DEXT(uint target, uint attachment, uint textarget, uint texture, int level)
@@ -4677,9 +4696,9 @@ namespace CSharpGL
             GetDelegateFor<glFramebufferTexture1DEXT>()(target, attachment, textarget, texture, level);
         }
 
-        public static void FramebufferTexture2DEXT(uint target, uint attachment, uint textarget, uint texture, int level)
+        public static void FramebufferTexture2D(uint target, uint attachment, uint textarget, uint texture, int level)
         {
-            _glFramebufferTexture2DEXT(target, attachment, textarget, texture, level);
+            _glFramebufferTexture2D(target, attachment, textarget, texture, level);
         }
 
         public static void FramebufferTexture3DEXT(uint target, uint attachment, uint textarget, uint texture, int level, int zoffset)
@@ -4687,14 +4706,14 @@ namespace CSharpGL
             GetDelegateFor<glFramebufferTexture3DEXT>()(target, attachment, textarget, texture, level, zoffset);
         }
 
-        public static void FramebufferRenderbufferEXT(uint target, uint attachment, uint renderbuffertarget, uint renderbuffer)
+        public static void FramebufferRenderbuffer(uint target, uint attachment, uint renderbuffertarget, uint renderbuffer)
         {
-            GetDelegateFor<glFramebufferRenderbufferEXT>()(target, attachment, renderbuffertarget, renderbuffer);
+            _glFramebufferRenderbuffer(target, attachment, renderbuffertarget, renderbuffer);
         }
 
-        public static void GetFramebufferAttachmentParameterivEXT(uint target, uint attachment, uint pname, int[] parameters)
+        public static void GetFramebufferAttachmentParameteriv(uint target, uint attachment, uint pname, int[] parameters)
         {
-            GetDelegateFor<glGetFramebufferAttachmentParameterivEXT>()(target, attachment, pname, parameters);
+            _glGetFramebufferAttachmentParameteriv(target, attachment, pname, parameters);
         }
 
         public static void GenerateMipmapEXT(uint target)
@@ -4704,21 +4723,21 @@ namespace CSharpGL
 
         //  Delegates
         private delegate bool glIsRenderbufferEXT(uint renderbuffer);
-        private delegate void glBindRenderbufferEXT(uint target, uint renderbuffer);
-        private delegate void glDeleteRenderbuffersEXT(uint n, uint[] renderbuffers);
-        private delegate void glGenRenderbuffersEXT(uint n, uint[] renderbuffers);
-        private delegate void glRenderbufferStorageEXT(uint target, uint internalformat, int width, int height);
+        private delegate void glBindRenderbuffer(uint target, uint renderbuffer);
+        private delegate void glDeleteRenderbuffers(uint n, uint[] renderbuffers);
+        private delegate void glGenRenderbuffers(uint n, uint[] renderbuffers);
+        private delegate void glRenderbufferStorage(uint target, uint internalformat, int width, int height);
         private delegate void glGetRenderbufferParameterivEXT(uint target, uint pname, int[] parameters);
         private delegate bool glIsFramebufferEXT(uint framebuffer);
-        private delegate void glBindFramebufferEXT(uint target, uint framebuffer);
-        private delegate void glDeleteFramebuffersEXT(uint n, uint[] framebuffers);
-        private delegate void glGenFramebuffersEXT(uint n, uint[] framebuffers);
-        private delegate uint glCheckFramebufferStatusEXT(uint target);
+        private delegate void glBindFramebuffer(uint target, uint framebuffer);
+        private delegate void glDeleteFramebuffers(uint n, uint[] framebuffers);
+        private delegate void glGenFramebuffers(uint n, uint[] framebuffers);
+        private delegate uint glCheckFramebufferStatus(uint target);
         private delegate void glFramebufferTexture1DEXT(uint target, uint attachment, uint textarget, uint texture, int level);
-        private delegate void glFramebufferTexture2DEXT(uint target, uint attachment, uint textarget, uint texture, int level);
+        private delegate void glFramebufferTexture2D(uint target, uint attachment, uint textarget, uint texture, int level);
         private delegate void glFramebufferTexture3DEXT(uint target, uint attachment, uint textarget, uint texture, int level, int zoffset);
-        private delegate void glFramebufferRenderbufferEXT(uint target, uint attachment, uint renderbuffertarget, uint renderbuffer);
-        private delegate void glGetFramebufferAttachmentParameterivEXT(uint target, uint attachment, uint pname, int[] parameters);
+        private delegate void glFramebufferRenderbuffer(uint target, uint attachment, uint renderbuffertarget, uint renderbuffer);
+        private delegate void glGetFramebufferAttachmentParameteriv(uint target, uint attachment, uint pname, int[] parameters);
         private delegate void glGenerateMipmapEXT(uint target);
 
         //  Constants
@@ -4758,6 +4777,7 @@ namespace CSharpGL
         public const uint GL_COLOR_ATTACHMENT15_EXT = 0x8CEF;
         public const uint GL_DEPTH_ATTACHMENT_EXT = 0x8D00;
         public const uint GL_STENCIL_ATTACHMENT_EXT = 0x8D20;
+        public const uint GL_DEPTH_STENCIL_ATTACHMENT = 0x821A;
         public const uint GL_FRAMEBUFFER_EXT = 0x8D40;
         public const uint GL_RENDERBUFFER_EXT = 0x8D41;
         public const uint GL_RENDERBUFFER_WIDTH_EXT = 0x8D42;
@@ -6142,6 +6162,7 @@ namespace CSharpGL
 
         public const uint GL_HALF_FLOAT = 0x140B;
         public const uint GL_DEPTH_STENCIL = 0x84F9;
+        public const uint GL_UNSIGNED_INT_24_8 = 0x84FA;
         public const uint GL_FLOAT_32_UNSIGNED_INT_24_8_REV = 0x8DAD;
         public const uint GL_DEPTH32F_STENCIL8 = 0x8CAD;
         public const uint GL_RGB10_A2UI = 0x906F;

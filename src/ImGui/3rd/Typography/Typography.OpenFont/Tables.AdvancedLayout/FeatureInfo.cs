@@ -1,9 +1,9 @@
-﻿//Apache2, 2016-2017, WinterDev
+﻿//Apache2, 2016-present, WinterDev
 using System.Collections.Generic;
 namespace Typography.OpenFont
 {
-    //from https://www.microsoft.com/typography/otfntdev/standot/features.aspx
-    //https://www.microsoft.com/typography/otspec/featurelist.htm
+    //https://docs.microsoft.com/en-us/typography/opentype/spec/featurelist
+
     public sealed class FeatureInfo
     {
         public readonly string fullname;
@@ -16,7 +16,7 @@ namespace Typography.OpenFont
     }
     public static class Features
     {
-        static Dictionary<string, FeatureInfo> s_features = new Dictionary<string, FeatureInfo>();
+        static readonly Dictionary<string, FeatureInfo> s_features = new Dictionary<string, FeatureInfo>();
 
         // 
         public static readonly FeatureInfo

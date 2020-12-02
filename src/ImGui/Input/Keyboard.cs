@@ -97,7 +97,7 @@ namespace ImGui.Input
             {
                 if (this.lastKeyPressedTime[(int)key] == 0)
                 {
-                    this.lastKeyPressedTime[(int)key] = Application.Time;
+                    this.lastKeyPressedTime[(int)key] = Time.time;
                     return true;
                 }
 
@@ -105,19 +105,19 @@ namespace ImGui.Input
                 var t = this.lastKeyPressedTime[(int)key];
                 if (!this.isRepeatingKey[(int)key])
                 {
-                    if (isRepeat && Application.Time - t > delay)
+                    if (isRepeat && Time.time - t > delay)
                     {
                         this.isRepeatingKey[(int)key] = true;
-                        this.lastKeyPressedTime[(int)key] = Application.Time;
+                        this.lastKeyPressedTime[(int)key] = Time.time;
                         return true;
                     }
                 }
                 else
                 {
                     const float interval = 50;
-                    if (Application.Time - this.lastKeyPressedTime[(int)key] > interval)
+                    if (Time.time - this.lastKeyPressedTime[(int)key] > interval)
                     {
-                        this.lastKeyPressedTime[(int) key] = Application.Time;
+                        this.lastKeyPressedTime[(int) key] = Time.time;
                         return true;
                     }
                 }
@@ -129,5 +129,20 @@ namespace ImGui.Input
             }
             return false;
         }
+
+        public void OnFrameBegin()
+        {
+        }
+
+        public void OnFrameEnd()
+        {
+            //save current key states to last key states
+            for (var i = 0; i < keyStates.Length; i++)
+            {
+                lastKeyStates[i] = keyStates[i];
+            }
+        }
+
+
     }
 }

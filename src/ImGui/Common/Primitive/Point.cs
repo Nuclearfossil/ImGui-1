@@ -1,7 +1,8 @@
 using System;
 
-namespace ImGui.Common.Primitive
+namespace ImGui
 {
+    [System.Diagnostics.DebuggerDisplay("({X}, {Y})")]
     [System.Diagnostics.DebuggerStepThrough]
     [Serializable]
     public struct Point
@@ -115,6 +116,25 @@ namespace ImGui.Common.Primitive
         {
             return new Vector(point1._x - point2._x, point1._y - point2._y);
         }
+
+        /// <summary>
+        /// Operator Point * double
+        /// </summary>
+        /// <returns>
+        /// Point - The result of scaling the point with specific scalar
+        /// </returns>
+        /// <param name="point"> The Point </param>
+        /// <param name="scalar"> The scale scalar  </param>
+        public static Point operator *(Point point, double scalar)
+        {
+            return new Point(point._x* scalar, point._y * scalar);
+        }
+
+        public static Point Multiply(Point point, double scalar)
+        {
+            return new Point(point._x * scalar, point._y * scalar);
+        }
+
 #if Matrix
         /// <summary>
         /// Operator Point * Matrix
@@ -287,6 +307,11 @@ namespace ImGui.Common.Primitive
         public static Point Parse(string source)
         {
             throw new NotImplementedException();
+        }
+
+        public static bool AlmostEqual(Point a, Point b)
+        {
+            return MathEx.AmostEqual(a._x, b._x) && MathEx.AmostEqual(a._y, b._y);
         }
 
         /// <summary>

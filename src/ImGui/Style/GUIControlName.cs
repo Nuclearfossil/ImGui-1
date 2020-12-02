@@ -8,6 +8,7 @@ namespace ImGui
         Box,
         Space,
         FlexibleSpace,
+        Separator,
 
         //_StatefulStart,
 
@@ -21,5 +22,7 @@ namespace ImGui
         CollapsingHeader,
         ColorField,
         ListBox,
+        ProgressBar,
+        TreeNode,
     }
 }

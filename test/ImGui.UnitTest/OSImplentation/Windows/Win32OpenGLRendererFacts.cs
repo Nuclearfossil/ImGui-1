@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 using Xunit;
 using ImGui;
-using ImGui.Common.Primitive;
 
 namespace ImGui.UnitTest
 {
@@ -20,7 +19,7 @@ namespace ImGui.UnitTest
     }
 
     //TODO make these tests standalone without Application and Form.
-
+    #if false
     public class Win32OpenGLRendererFacts
     {
         public class DrawTextMeshFacts
@@ -74,7 +73,8 @@ namespace ImGui.UnitTest
                     GUILayout.PopStyleVar(2);
                 }));
             }
-
+            
         }
     }
+    #endif
 }

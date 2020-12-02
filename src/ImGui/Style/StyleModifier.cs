@@ -1,5 +1,4 @@
 ﻿using System;
-using ImGui.Common.Primitive;
 
 namespace ImGui
 {
@@ -13,7 +12,7 @@ namespace ImGui
 
     public class StyleModifier
     {
-        public GUIStyleName name;
+        public StylePropertyName name;
         public StyleType styleType;
         public GUIState state;
 
@@ -27,14 +26,14 @@ namespace ImGui
         public Color colorValue;
         public string stringValue;
 
-        public StyleModifier(GUIStyleName name, StyleType styleType, int value, GUIState state = GUIState.Normal)
+        public StyleModifier(StylePropertyName name, StyleType styleType, int value, GUIState state = GUIState.Normal)
         {
             this.name = name;
             this.styleType = styleType;
             this.state = state;
             this.intValue = value;
         }
-        public StyleModifier(GUIStyleName name, StyleType styleType, double value, GUIState state = GUIState.Normal)
+        public StyleModifier(StylePropertyName name, StyleType styleType, double value, GUIState state = GUIState.Normal)
         {
             this.name = name;
             this.styleType = styleType;
@@ -42,7 +41,7 @@ namespace ImGui
             this.doubleValue = value;
         }
 
-        public StyleModifier(GUIStyleName name, StyleType styleType, Color value, GUIState state = GUIState.Normal)
+        public StyleModifier(StylePropertyName name, StyleType styleType, Color value, GUIState state = GUIState.Normal)
         {
             this.name = name;
             this.styleType = styleType;
@@ -50,7 +49,7 @@ namespace ImGui
             this.colorValue = value;
         }
 
-        public StyleModifier(GUIStyleName name, StyleType styleType, string value, GUIState state = GUIState.Normal)
+        public StyleModifier(StylePropertyName name, StyleType styleType, string value, GUIState state = GUIState.Normal)
         {
             this.name = name;
             this.styleType = styleType;
